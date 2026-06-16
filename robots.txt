@@ -1,0 +1,18 @@
+User-agent: *
+
+# Allow indexing of public storefront and marketing pages
+Allow: /index.html
+Allow: /pricing.html
+Allow: /$
+
+# Restrict crawling of private, authenticated application routes
+Disallow: /admin.html
+Disallow: /console.html
+Disallow: /builder.html
+Disallow: /fleet.html
+
+# Restrict crawling of utility pages
+Disallow: /404.html
+
+# Point crawlers to the sitemap
+Sitemap: https://ionith-omni-agent.web.app/sitemap.xml

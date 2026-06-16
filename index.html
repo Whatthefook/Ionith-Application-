@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ionith — The Uncompromising AI Workspace</title>
+  <script>
+    if (localStorage.getItem('ionith_visited') === 'true' && !window.location.search.includes('landing')) {
+      window.location.replace('/console.html');
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+  <script>
+    window.tailwind = {
+      config: {
+        theme: {
+          extend: {
+            colors: {
+              'neon-cyan': '#00f0ff',
+              'neon-blue': '#3b82f6',
+              'neon-purple': '#a855f7',
+              'neon-pink': '#ec4899',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #000000;
+      --border: rgba(255,255,255,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .cyber-grid-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      pointer-events: none;
+      background: 
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(168, 85, 247, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(168, 85, 247, 0.015) 1px, transparent 1px);
+      background-size: 60px 60px, 60px 60px, 20px 20px, 20px 20px;
+    }
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: -10;
+    }
+    .ambient-orb-1 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.08), transparent 70%);
+      top: -100px;
+      left: -100px;
+      animation: float 8s ease-in-out infinite;
+    }
+    .ambient-orb-2 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.06), transparent 70%);
+      bottom: -50px;
+      right: -50px;
+      animation: float 10s ease-in-out infinite reverse;
+    }
+
+    .font-mono { font-family: 'IBM Plex Mono', monospace; }
+    .font-sans { font-family: 'Inter', sans-serif; }
+
+    /* Page routing */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Navbar scroll effect handled by JS */
+    #navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 50;
+      transition: all 0.3s ease;
+      background: rgba(18, 18, 18, 0.4) !important;
+      backdrop-filter: blur(16px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    #navbar.scrolled {
+      background: rgba(18, 18, 18, 0.6) !important;
+      backdrop-filter: blur(24px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* Nav link active state */
+    .nav-link { transition: color 0.15s; }
+    .nav-link.active { color: #fff !important; }
+    .nav-link:not(.active) { color: #71717a; }
+    .nav-link:hover { color: #fff; }
+
+    /* Grid gap emulation with bg trick */
+    .grid-gap-bg {
+      background: transparent !important;
+      gap: 16px !important;
+    }
+    .grid-gap-bg > * {
+      background: rgba(18, 18, 18, 0.4) !important;
+      backdrop-filter: blur(16px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 1rem !important; /* rounded-2xl */
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .grid-gap-bg > *:hover {
+      border-color: rgba(0, 240, 255, 0.3) !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.08), inset 0 0 25px rgba(0, 240, 255, 0.03) !important;
+      transform: translateY(-2px);
+    }
+
+    /* Hover card */
+    .hover-card {
+      background: rgba(18, 18, 18, 0.4) !important;
+      backdrop-filter: blur(16px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 1rem !important; /* rounded-2xl */
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .hover-card:hover {
+      border-color: rgba(0, 240, 255, 0.3) !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.08), inset 0 0 25px rgba(0, 240, 255, 0.03) !important;
+      transform: translateY(-2px);
+    }
+
+    /* Mobile menu */
+    #mobile-menu { display: none; }
+    #mobile-menu.open { display: flex; }
+
+    /* Footer always at bottom */
+    #app { display: flex; flex-direction: column; flex: 1; }
+    #page-container { flex: 1; }
+
+    /* Subtle text decorations */
+    .strikethrough { text-decoration: line-through; text-decoration-color: #3f3f46; }
+
+    /* Smooth page transition */
+    .page.active {
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Semantic margin utilities */
+    .mb-4 { margin-bottom: 4px; }
+    .mb-8 { margin-bottom: 8px; }
+    .mb-12 { margin-bottom: 12px; }
+    .mb-16 { margin-bottom: 16px; }
+    .mb-20 { margin-bottom: 20px; }
+    .mb-24 { margin-bottom: 24px; }
+    .mb-32 { margin-bottom: 32px; }
+    .mb-48 { margin-bottom: 48px; }
+    .mb-64 { margin-bottom: 64px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-80 { margin-top: 80px; }
+  </style>
+</head>
+<body>
+
+  <div class="pointer-events-none select-none fixed inset-0 overflow-hidden z-[-10]">
+    <div class="cyber-grid-bg"></div>
+    <div class="ambient-orb ambient-orb-1"></div>
+    <div class="ambient-orb ambient-orb-2"></div>
+  </div>
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════ -->
+<header id="navbar">
+  <nav style="max-width:1152px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;">
+    <!-- Logo -->
+    <a href="#" onclick="navigate('home');return false;"
+       class="font-mono"
+       style="color:#fff;font-size:13px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;user-select:none;">
+      IONITH
+    </a>
+
+    <!-- Center links — desktop -->
+    <div style="display:flex;align-items:center;gap:32px;" class="desktop-nav">
+      <a href="#" onclick="navigate('fleet');return false;"
+         id="nav-fleet"
+         class="nav-link font-mono"
+         style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;">
+        Fleet
+      </a>
+      <a href="#" onclick="navigate('pricing');return false;"
+         id="nav-pricing"
+         class="nav-link font-mono"
+         style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;">
+        Pricing
+      </a>
+    </div>
+
+    <!-- Right CTA — desktop -->
+    <div class="desktop-nav">
+      <a href="/console.html"
+         class="font-mono"
+         style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:8px 16px;text-decoration:none;transition:all .15s;"
+         onclick="localStorage.setItem('ionith_visited', 'true');"
+         onmouseover="this.style.background='#fff';this.style.color='#000';"
+         onmouseout="this.style.background='transparent';this.style.color='#fff';">
+        Open Workspace
+      </a>
+    </div>
+
+    <!-- Mobile toggle -->
+    <button id="mobile-toggle"
+            onclick="toggleMobile()"
+            aria-label="Toggle menu"
+            style="display:none;background:none;border:none;cursor:pointer;color:#71717a;padding:4px;">
+      <i data-lucide="menu" style="width:18px;height:18px;"></i>
+    </button>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu"
+       style="border-top:1px solid var(--border);background:var(--bg);padding:24px;flex-direction:column;gap:24px;">
+    <a href="#" onclick="navigate('fleet');toggleMobile();return false;"
+       class="font-mono"
+       style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#71717a;text-decoration:none;">
+      Fleet
+    </a>
+    <a href="#" onclick="navigate('pricing');toggleMobile();return false;"
+       class="font-mono"
+       style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#71717a;text-decoration:none;">
+      Pricing
+    </a>
+    <a href="/console.html"
+       class="font-mono"
+       style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:8px 16px;text-align:center;text-decoration:none;"
+       onclick="localStorage.setItem('ionith_visited', 'true');">
+      Open Workspace
+    </a>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════
+     PAGE CONTAINER
+═══════════════════════════════════════════ -->
+<div id="page-container">
+
+  <!-- ══════════ HOME ══════════ -->
+  <div id="page-home" class="page active">
+    <main style="background:var(--bg);color:#fff;">
+
+      <!-- Hero -->
+      <section style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:96px 24px 128px;">
+
+        <!-- Badge -->
+        <div style="display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.1);padding:6px 16px;" class="mb-32">
+          <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;"></span>
+          <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">
+            Ionith Engine v2.5 — Up to 1M Token Context
+          </span>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="font-sans" style="font-size:clamp(44px,7vw,96px);font-weight:700;letter-spacing:-.03em;line-height:1.05;color:#fff;max-width:860px;" class="mb-24">
+          The uncompromising<br />AI workspace.
+        </h1>
+
+        <!-- Sub -->
+        <p class="font-sans" style="font-size:clamp(14px,1.5vw,18px);color:#71717a;max-width:560px;line-height:1.7;font-weight:300;" class="mb-48">
+          An agentic multi-model platform with up to 1 million token context windows — engineered for deep reasoning, massive document processing, and artifact generation at scale.
+        </p>
+
+        <!-- CTAs -->
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:16px;">
+          <a href="/console.html"
+             class="font-mono"
+             style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;background:#fff;color:#000;padding:12px 28px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:background .15s;"
+             onclick="localStorage.setItem('ionith_visited', 'true');"
+             onmouseover="this.style.background='#e4e4e7';"
+             onmouseout="this.style.background='#fff';">
+            Launch Workspace
+            <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+          </a>
+          <button
+            onclick="alert('The .exe client is strictly reserved for Ionith Pro users. Please upgrade in the workspace to unlock.')"
+            class="font-mono"
+            style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:12px 28px;background:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:border-color .15s;"
+            onmouseover="this.style.borderColor='rgba(255,255,255,.4)';"
+            onmouseout="this.style.borderColor='rgba(255,255,255,.2)';">
+            <i data-lucide="terminal" style="width:13px;height:13px;"></i>
+            Download for Windows
+          </button>
+        </div>
+
+        <!-- Stat bar -->
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;border:1px solid rgba(255,255,255,.1);width:100%;max-width:640px;" class="mt-80">
+          <div style="flex:1;min-width:140px;padding:20px 24px;text-align:center;border-right:1px solid rgba(255,255,255,.1);">
+            <div class="font-mono" style="font-size:24px;font-weight:700;color:#fff;" class="mb-4">3</div>
+            <div class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Specialist Models</div>
+          </div>
+          <div style="flex:1;min-width:140px;padding:20px 24px;text-align:center;border-right:1px solid rgba(255,255,255,.1);">
+            <div class="font-mono" style="font-size:24px;font-weight:700;color:#fff;" class="mb-4">1M</div>
+            <div class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Max Context</div>
+          </div>
+          <div style="flex:1;min-width:140px;padding:20px 24px;text-align:center;">
+            <div class="font-mono" style="font-size:24px;font-weight:700;color:#fff;" class="mb-4">&lt;200ms</div>
+            <div class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Flash TTFT</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Model Fleet Section -->
+      <section style="border-top:1px solid var(--border);padding:112px 24px;">
+        <div style="max-width:1152px;margin:0 auto;">
+          <div style="margin-bottom:64px;" class="mb-64">
+            <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Model Fleet</span>
+            <h2 class="font-sans" style="font-size:clamp(28px,3vw,40px);font-weight:700;color:#fff;letter-spacing:-.02em;" class="mt-12">
+              Three models. One coherent workspace.
+            </h2>
+          </div>
+
+          <div class="grid-gap-bg" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+
+            <!-- Flash -->
+            <div class="hover-card" style="padding:32px;display:flex;flex-direction:column;gap:24px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                <i data-lucide="zap" style="width:20px;height:20px;color:#71717a;stroke-width:1.5;"></i>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;">flash</span>
+              </div>
+              <div>
+                <h3 class="font-sans" style="font-size:17px;font-weight:600;color:#fff;" class="mb-4">Ionith Flash</h3>
+                <p class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;">Low-latency. High-throughput.</p>
+              </div>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;flex:1;">
+                Natively multimodal. Processes massive documents, images, and long-form data in a single pass. Flash delivers sub-second first tokens across a 256K token context window — ideal for interactive workflows, inline suggestions, and lightweight agentic loops.
+              </p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:8px;border-top:1px solid var(--border);">
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">&lt; 200ms TTFT</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">Streaming native</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">256K context</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">Multimodal</span>
+              </div>
+            </div>
+
+            <!-- Pro -->
+            <div class="hover-card" style="padding:32px;display:flex;flex-direction:column;gap:24px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                <i data-lucide="brain" style="width:20px;height:20px;color:#71717a;stroke-width:1.5;"></i>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;">pro</span>
+              </div>
+              <div>
+                <h3 class="font-sans" style="font-size:17px;font-weight:600;color:#fff;" class="mb-4">Ionith Pro</h3>
+                <p class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;">Deep reasoning. Precision output.</p>
+              </div>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;flex:1;">
+                Engineered for complex codebases, multi-step reasoning chains, and production-grade artifact generation. Pro's hybrid attention architecture — Sliding Window and Global Attention — handles a 1 million token context window with precision, enabling long-horizon reasoning at scale.
+              </p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:8px;border-top:1px solid var(--border);">
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">Extended CoT</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">Multi-agent ready</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">1M context</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">SWA + GA</span>
+              </div>
+            </div>
+
+            <!-- Vision -->
+            <div class="hover-card" style="padding:32px;display:flex;flex-direction:column;gap:24px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                <i data-lucide="eye" style="width:20px;height:20px;color:#71717a;stroke-width:1.5;"></i>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;">vision</span>
+              </div>
+              <div>
+                <h3 class="font-sans" style="font-size:17px;font-weight:600;color:#fff;" class="mb-4">Ionith Vision</h3>
+                <p class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;">Visual intelligence. Structural fidelity.</p>
+              </div>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;flex:1;">
+                Natively multimodal. Processes screenshots, wireframes, design files, and UI layouts alongside massive documents and long-form data in a single pass — across a 256K token context window. Vision translates visual artifacts directly into structured code, specs, and actionable instructions.
+              </p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:8px;border-top:1px solid var(--border);">
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">UI-to-code</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">256K context</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">Multi-image</span>
+                <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 8px;">Multimodal native</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- Platform Pillars -->
+      <section style="border-top:1px solid var(--border);padding:112px 24px;">
+        <div style="max-width:1152px;margin:0 auto;">
+          <div style="margin-bottom:64px;" class="mb-64">
+            <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Platform</span>
+            <h2 class="font-sans" style="font-size:clamp(28px,3vw,40px);font-weight:700;color:#fff;letter-spacing:-.02em;" class="mt-12">
+              Every layer. Engineered precisely.
+            </h2>
+          </div>
+
+          <div class="grid-gap-bg" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+            <div class="hover-card" style="padding:32px;">
+              <h3 class="font-mono" style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;" class="mb-12">Agentic Routing</h3>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Tasks are dispatched to the optimal model in your fleet automatically. Zero manual model-switching.</p>
+            </div>
+            <div class="hover-card" style="padding:32px;">
+              <h3 class="font-mono" style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;" class="mb-12">Artifact Engine</h3>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Every output — code, docs, plans — is stored as a versioned artifact you can diff, fork, or deploy.</p>
+            </div>
+            <div class="hover-card" style="padding:32px;">
+              <h3 class="font-mono" style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;" class="mb-12">Edge Execution</h3>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Requests route through Cloudflare's global edge network. No single point of failure, no cold starts.</p>
+            </div>
+            <div class="hover-card" style="padding:32px;">
+              <h3 class="font-mono" style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;" class="mb-12">Context Integrity</h3>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Long-context sessions stay coherent. Ionith manages token budgets and compaction transparently.</p>
+            </div>
+            <div class="hover-card" style="padding:32px;">
+              <h3 class="font-mono" style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;" class="mb-12">Deterministic Output</h3>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Reproducible runs via seed control. Test the same prompt across model versions with confidence.</p>
+            </div>
+            <div class="hover-card" style="padding:32px;">
+              <h3 class="font-mono" style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;" class="mb-12">Audit Logs</h3>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Every request, tool call, and model decision is logged, exportable, and queryable at any time.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA Band -->
+      <section style="border-top:1px solid var(--border);padding:112px 24px;">
+        <div style="max-width:1152px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:40px;">
+          <div>
+            <h2 class="font-sans" style="font-size:clamp(28px,3vw,40px);font-weight:700;color:#fff;letter-spacing:-.02em;" class="mb-12">
+              Ready to work without limits?
+            </h2>
+            <p class="font-sans" style="font-size:13px;color:#71717a;max-width:480px;line-height:1.7;">
+              The free tier gets you in the door. Ionith Pro removes every ceiling — unlimited messages, full model access, and the native client.
+            </p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;">
+            <a href="/console.html"
+               class="font-mono"
+               style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;background:#fff;color:#000;padding:12px 28px;text-decoration:none;transition:background .15s;"
+               onclick="localStorage.setItem('ionith_visited', 'true');"
+               onmouseover="this.style.background='#e4e4e7';"
+               onmouseout="this.style.background='#fff';">
+              Start Free
+            </a>
+            <a href="#" onclick="navigate('pricing');return false;"
+               class="font-mono"
+               style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:12px 28px;text-decoration:none;transition:border-color .15s;"
+               onmouseover="this.style.borderColor='rgba(255,255,255,.4)';"
+               onmouseout="this.style.borderColor='rgba(255,255,255,.2)';">
+              View Pricing
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ══════════ FLEET ══════════ -->
+  <div id="page-fleet" class="page">
+    <main style="background:var(--bg);color:#fff;padding-top:56px;">
+
+      <!-- Header -->
+      <section style="padding:96px 24px;border-bottom:1px solid var(--border);">
+        <div style="max-width:1152px;margin:0 auto;">
+          <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Model Fleet</span>
+          <h1 class="font-sans" style="font-size:clamp(40px,5vw,64px);font-weight:700;color:#fff;letter-spacing:-.03em;line-height:1.1;" class="mt-16 mb-24">
+            Three models.<br />Purpose-built.
+          </h1>
+          <p class="font-sans" style="font-size:15px;color:#71717a;max-width:520px;line-height:1.7;font-weight:300;">
+            Each model in the Ionith fleet is optimized for a distinct class of tasks. The agentic router selects the right one automatically — or you can pin your session to a specific model.
+          </p>
+        </div>
+      </section>
+
+      <!-- Model Cards -->
+      <section style="padding:80px 24px;">
+        <div class="grid-gap-bg" style="max-width:1152px;margin:0 auto;display:flex;flex-direction:column;">
+
+          <!-- Flash -->
+          <div style="padding:56px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;" class="fleet-card">
+            <div style="display:flex;flex-direction:column;gap:24px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <i data-lucide="zap" style="width:18px;height:18px;color:#71717a;stroke-width:1.5;"></i>
+                <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">flash-2.5</span>
+              </div>
+              <div>
+                <h2 class="font-sans" style="font-size:22px;font-weight:700;color:#fff;" class="mb-8">Ionith Flash</h2>
+                <p class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;" class="mb-20">Fast responses, everyday tasks.</p>
+                <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Flash is the default model for interactive sessions. Natively multimodal — it processes text, images, and massive documents in a single pass across a 256K token context window. Architecture tuned for minimal latency without sacrificing instruction-following fidelity. Use it for chat, inline completions, lightweight agents, and rapid prototyping.</p>
+              </div>
+              <a href="/console.html"
+                 class="font-mono"
+                 style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 20px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;width:fit-content;transition:all .15s;"
+                 onclick="localStorage.setItem('ionith_visited', 'true');"
+                 onmouseover="this.style.background='#fff';this.style.color='#000';"
+                 onmouseout="this.style.background='transparent';this.style.color='#fff';">
+                Use Ionith Flash
+                <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:32px;">
+              <div>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;display:block;" class="mb-16">Specifications</span>
+                <div style="border:1px solid var(--border);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Context Window</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">256k tokens</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">First Token</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">&lt; 200ms</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Output Speed</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">~120 tok/s</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Modalities</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Text + Image (native)</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Document Processing</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Single-pass, massive-scale</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Availability</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Free &amp; Pro</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;display:block;" class="mb-16">Capabilities</span>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Instruction following</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Code generation</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Summarization</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Q&amp;A</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Streaming output</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Tool use</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Multimodal input</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Large doc processing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pro Model -->
+          <div style="padding:56px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;" class="fleet-card">
+            <div style="display:flex;flex-direction:column;gap:24px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <i data-lucide="brain" style="width:18px;height:18px;color:#71717a;stroke-width:1.5;"></i>
+                <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">pro-2.5</span>
+              </div>
+              <div>
+                <h2 class="font-sans" style="font-size:22px;font-weight:700;color:#fff;margin-bottom:8px;">Ionith Pro</h2>
+                <p class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;margin-bottom:20px;">1M context. Hybrid attention. Long-horizon reasoning.</p>
+                <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Pro runs a hybrid attention architecture — Sliding Window Attention (SWA) and Global Attention (GA) — designed specifically for deep codebase analysis, complex agentic tasks, and long-horizon reasoning chains across a 1 million token context window. Extended chain-of-thought before every output. Available exclusively to Ionith Pro subscribers.</p>
+              </div>
+              <a href="/console.html"
+                 class="font-mono"
+                 style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 20px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;width:fit-content;transition:all .15s;"
+                 onclick="localStorage.setItem('ionith_visited', 'true');"
+                 onmouseover="this.style.background='#fff';this.style.color='#000';"
+                 onmouseout="this.style.background='transparent';this.style.color='#fff';">
+                Use Ionith Pro
+                <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:32px;">
+              <div>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;display:block;" class="mb-16">Specifications</span>
+                <div style="border:1px solid var(--border);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Context Window</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">1M tokens</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Attention Architecture</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">SWA + GA Hybrid</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Reasoning</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Extended CoT</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Output Speed</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">~60 tok/s</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Modalities</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Text</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Availability</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Pro only</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;display:block;" class="mb-16">Capabilities</span>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Multi-step reasoning</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Complex coding</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Architecture planning</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Formal verification</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">1M token analysis</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Agentic workflows</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">SWA + GA attention</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Deep codebase analysis</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vision -->
+          <div style="padding:56px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;" class="fleet-card">
+            <div style="display:flex;flex-direction:column;gap:24px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <i data-lucide="eye" style="width:18px;height:18px;color:#71717a;stroke-width:1.5;"></i>
+                <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">vision-2.5</span>
+              </div>
+              <div>
+                <h2 class="font-sans" style="font-size:22px;font-weight:700;color:#fff;margin-bottom:8px;">Ionith Vision</h2>
+                <p class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;margin-bottom:20px;">256K context. Multimodal native. UI analysis.</p>
+                <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Vision is natively multimodal — ingesting screenshots, wireframes, design exports, diagrams, and massive documents in a single pass across a 256K token context window. Designed for frontend engineers, designers, and product teams who need structured output at scale.</p>
+              </div>
+              <a href="/console.html"
+                 class="font-mono"
+                 style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 20px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;width:fit-content;transition:all .15s;"
+                 onclick="localStorage.setItem('ionith_visited', 'true');"
+                 onmouseover="this.style.background='#fff';this.style.color='#000';"
+                 onmouseout="this.style.background='transparent';this.style.color='#fff';">
+                Use Ionith Vision
+                <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:32px;">
+              <div>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;display:block;" class="mb-16">Specifications</span>
+                <div style="border:1px solid var(--border);">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Context Window</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">256k tokens</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Image Inputs</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Up to 20/request</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Resolution</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Up to 8k px</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Modalities</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Text + Image (native)</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Document Processing</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Single-pass, massive-scale</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+                    <span class="font-mono" style="font-size:11px;color:#71717a;">Availability</span>
+                    <span class="font-mono" style="font-size:11px;color:#fff;">Free &amp; Pro</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.15em;text-transform:uppercase;display:block;" class="mb-16">Capabilities</span>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">UI-to-code</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Diagram parsing</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Screenshot analysis</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Layout description</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Design-to-spec</span>
+                  <span class="font-mono" style="font-size:11px;color:#71717a;border:1px solid var(--border);padding:4px 10px;">Visual Q&amp;A</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ══════════ PRICING ══════════ -->
+  <div id="page-pricing" class="page">
+    <main style="background:var(--bg);color:#fff;padding-top:56px;">
+
+      <!-- Header -->
+      <section style="padding:96px 24px;border-bottom:1px solid var(--border);text-align:center;">
+        <div style="max-width:1152px;margin:0 auto;">
+          <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;">Pricing</span>
+          <h1 class="font-sans" style="font-size:clamp(40px,5vw,64px);font-weight:700;color:#fff;margin-top:16px;margin-bottom:24px;letter-spacing:-.03em;">
+            Simple. Transparent.
+          </h1>
+          <p class="font-sans" style="font-size:15px;color:#71717a;max-width:480px;margin:0 auto;line-height:1.7;font-weight:300;">
+            Start free with no commitment. Upgrade when you need deeper reasoning, the native client, or infrastructure without ceilings.
+          </p>
+        </div>
+      </section>
+
+      <!-- Cards -->
+      <section style="padding:96px 24px;">
+        <div class="grid-gap-bg" style="max-width:896px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
+
+          <!-- Free -->
+          <div class="hover-card" style="padding:40px;display:flex;flex-direction:column;gap:32px;">
+            <div>
+              <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.15em;text-transform:uppercase;display:block;margin-bottom:16px;">Free</span>
+              <h2 class="font-sans" style="font-size:19px;font-weight:600;color:#fff;margin-bottom:8px;">Console Access</h2>
+              <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.6;">Everything you need to start building with AI. Zero friction, zero cost.</p>
+            </div>
+            <div>
+              <div class="font-mono" style="font-size:36px;font-weight:700;color:#fff;margin-bottom:4px;">Free</div>
+              <div class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;">No credit card required</div>
+            </div>
+            <a href="/console.html"
+               class="font-mono"
+               style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);color:#fff;padding:12px 24px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color .15s;"
+               onclick="localStorage.setItem('ionith_visited', 'true');"
+               onmouseover="this.style.borderColor='rgba(255,255,255,.4)';"
+               onmouseout="this.style.borderColor='rgba(255,255,255,.2)';">
+              Start Free
+              <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+            </a>
+            <ul style="display:flex;flex-direction:column;list-style:none;">
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">256K token context window</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Natively multimodal (text, images, docs)</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">15 messages per day</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Ionith Flash model</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Ionith Vision model</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Standard agentic routing</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Artifact versioning</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Browser workspace</span></li>
+              <!-- Excluded -->
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+                <span style="width:12px;height:12px;margin-top:1px;flex-shrink:0;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;"><span style="width:6px;height:1px;background:#52525b;display:block;"></span></span>
+                <span class="font-mono strikethrough" style="font-size:11px;color:#52525b;letter-spacing:.03em;">Ionith Pro Reasoning model</span>
+              </li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+                <span style="width:12px;height:12px;margin-top:1px;flex-shrink:0;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;"><span style="width:6px;height:1px;background:#52525b;display:block;"></span></span>
+                <span class="font-mono strikethrough" style="font-size:11px;color:#52525b;letter-spacing:.03em;">Windows .exe client</span>
+              </li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+                <span style="width:12px;height:12px;margin-top:1px;flex-shrink:0;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;"><span style="width:6px;height:1px;background:#52525b;display:block;"></span></span>
+                <span class="font-mono strikethrough" style="font-size:11px;color:#52525b;letter-spacing:.03em;">Priority Cloudflare edge routing</span>
+              </li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;">
+                <span style="width:12px;height:12px;margin-top:1px;flex-shrink:0;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;"><span style="width:6px;height:1px;background:#52525b;display:block;"></span></span>
+                <span class="font-mono strikethrough" style="font-size:11px;color:#52525b;letter-spacing:.03em;">Unlimited messages</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Pro -->
+          <div class="hover-card" style="padding:40px;display:flex;flex-direction:column;gap:32px;border:1px solid rgba(255,255,255,0.3);position:relative;">
+            <!-- Badge -->
+            <div style="position:absolute;top:0;right:0;">
+              <span class="font-mono" style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;background:#fff;color:#000;padding:4px 12px;display:block;">Recommended</span>
+            </div>
+            <div>
+              <span class="font-mono" style="font-size:11px;color:#a1a1aa;letter-spacing:.15em;text-transform:uppercase;display:block;margin-bottom:16px;">Pro</span>
+              <h2 class="font-sans" style="font-size:19px;font-weight:600;color:#fff;margin-bottom:8px;">Ionith Pro</h2>
+              <p class="font-sans" style="font-size:13px;color:#a1a1aa;line-height:1.6;">Full model access, native client, and infrastructure with no caps. Built for professionals.</p>
+            </div>
+            <div>
+              <div class="font-mono" style="font-size:36px;font-weight:700;color:#fff;margin-bottom:4px;">₹499</div>
+              <div class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;">per month</div>
+            </div>
+            <a href="/console.html"
+               class="font-mono"
+               style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;background:#fff;color:#000;padding:12px 24px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;"
+               onclick="localStorage.setItem('ionith_visited', 'true');"
+               onmouseover="this.style.background='#e4e4e7';"
+               onmouseout="this.style.background='#fff';">
+              Upgrade to Pro
+              <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+            </a>
+            <ul style="display:flex;flex-direction:column;list-style:none;">
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Unlimited messages</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Ionith Flash model</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Ionith Vision model</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Ionith Pro Reasoning model</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Windows .exe native client</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Priority Cloudflare edge routing</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Extended context sessions</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Advanced artifact engine</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Deterministic seed control</span></li>
+              <li style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;"><i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:2;margin-top:1px;flex-shrink:0;"></i><span class="font-mono" style="font-size:11px;color:#d4d4d8;letter-spacing:.03em;">Full audit log export</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section style="padding:80px 24px;border-top:1px solid var(--border);">
+        <div class="grid-gap-bg" style="max-width:896px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+          <div style="padding:32px;">
+            <p class="font-mono" style="font-size:11px;font-weight:600;color:#fff;letter-spacing:.03em;margin-bottom:12px;">What happens when I hit 15 messages?</p>
+            <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Your session pauses until the daily reset at midnight UTC. Upgrade to Pro for unlimited messages.</p>
+          </div>
+          <div style="padding:32px;">
+            <p class="font-mono" style="font-size:11px;font-weight:600;color:#fff;letter-spacing:.03em;margin-bottom:12px;">Is there an annual plan?</p>
+            <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Annual billing at a discount is coming. For now, Pro is billed monthly with no lock-in.</p>
+          </div>
+          <div style="padding:32px;">
+            <p class="font-mono" style="font-size:11px;font-weight:600;color:#fff;letter-spacing:.03em;margin-bottom:12px;">Can I cancel anytime?</p>
+            <p class="font-sans" style="font-size:13px;color:#71717a;line-height:1.7;">Yes. Cancel from the workspace at any time. Access remains active until the end of your billing period.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+</div><!-- /page-container -->
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════ -->
+<footer style="border-top:1px solid var(--border);background:rgba(18, 18, 18, 0.4) !important;backdrop-filter:blur(16px) !important;">
+  <div style="max-width:1152px;margin:0 auto;padding:40px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:24px;">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:32px;">
+      <span class="font-mono" style="font-size:13px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#fff;">IONITH</span>
+      <span class="font-mono" style="font-size:11px;color:#71717a;letter-spacing:.05em;">Built for builders.</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:32px;">
+      <a href="#" onclick="navigate('fleet');return false;" class="font-mono" style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#71717a;text-decoration:none;transition:color .15s;" onmouseover="this.style.color='#fff';" onmouseout="this.style.color='#71717a';">Fleet</a>
+      <a href="#" onclick="navigate('pricing');return false;" class="font-mono" style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#71717a;text-decoration:none;transition:color .15s;" onmouseover="this.style.color='#fff';" onmouseout="this.style.color='#71717a';">Pricing</a>
+      <a href="/console.html" class="font-mono" style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#71717a;text-decoration:none;transition:color .15s;" onclick="localStorage.setItem('ionith_visited', 'true');" onmouseover="this.style.color='#fff';" onmouseout="this.style.color='#71717a';">Workspace</a>
+    </div>
+    <span class="font-mono" style="font-size:11px;color:#3f3f46;letter-spacing:.05em;">&copy; Ionith 2026</span>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════ -->
+<script>
+  // ── Lucide icons ──
+  lucide.createIcons();
+
+  // ── Responsive navbar ──
+  function handleResize() {
+    const w = window.innerWidth;
+    const desktopEls = document.querySelectorAll('.desktop-nav');
+    const mobileToggle = document.getElementById('mobile-toggle');
+    desktopEls.forEach(el => el.style.display = w < 768 ? 'none' : '');
+    mobileToggle.style.display = w < 768 ? 'block' : 'none';
+  }
+  handleResize();
+  window.addEventListener('resize', handleResize);
+
+  // ── Mobile menu ──
+  function toggleMobile() {
+    const menu = document.getElementById('mobile-menu');
+    menu.classList.toggle('open');
+    const toggle = document.getElementById('mobile-toggle');
+    const isOpen = menu.classList.contains('open');
+    toggle.innerHTML = isOpen
+      ? '<i data-lucide="x" style="width:18px;height:18px;"></i>'
+      : '<i data-lucide="menu" style="width:18px;height:18px;"></i>';
+    lucide.createIcons();
+  }
+
+  // ── Scroll effect ──
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 16);
+  }, { passive: true });
+
+  // ── SPA-style navigation ──
+  let currentPage = 'home';
+
+  function navigate(page) {
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    // Show target
+    document.getElementById('page-' + page).classList.add('active');
+    // Update nav active states
+    ['fleet', 'pricing'].forEach(id => {
+      const el = document.getElementById('nav-' + id);
+      if (el) el.classList.toggle('active', id === page);
+    });
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    // Re-init icons (new page content)
+    lucide.createIcons();
+    currentPage = page;
+
+    // Close mobile menu
+    const menu = document.getElementById('mobile-menu');
+    if (menu.classList.contains('open')) toggleMobile();
+  }
+
+  // ── Fleet card responsive layout ──
+  function handleFleetCards() {
+    const cards = document.querySelectorAll('.fleet-card');
+    cards.forEach(card => {
+      card.style.gridTemplateColumns = window.innerWidth < 768 ? '1fr' : '1fr 1fr';
+    });
+  }
+  handleFleetCards();
+  window.addEventListener('resize', handleFleetCards);
+</script>
+
+</body>
+</html>

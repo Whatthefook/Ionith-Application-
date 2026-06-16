@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IONITH — Usage Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="/creditManager.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'neon-cyan': '#00f0ff',
+            'neon-blue': '#3b82f6',
+            'neon-purple': '#a855f7',
+            'neon-pink': '#ec4899',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    body {
+      background-color: #000000;
+      color: #e2e8f0;
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .cyber-grid-bg {
+      position: fixed; inset: 0; z-index: -10; pointer-events: none;
+      background: linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+                  linear-gradient(rgba(168, 85, 247, 0.01) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(168, 85, 247, 0.01) 1px, transparent 1px);
+      background-size: 60px 60px, 60px 60px, 20px 20px, 20px 20px;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .ambient-orb { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: -10; }
+    .ambient-orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(0, 240, 255, 0.07), transparent 70%); top: -150px; left: -150px; animation: float 9s ease-in-out infinite; }
+    .ambient-orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(168, 85, 247, 0.05), transparent 70%); bottom: -100px; right: -100px; animation: float 11s ease-in-out infinite reverse; }
+
+    .glass-card {
+      background: rgba(10, 10, 12, 0.5);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .glass-card:hover {
+      border-color: rgba(0, 240, 255, 0.2);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.05), inset 0 0 15px rgba(255, 255, 255, 0.01);
+      transform: translateY(-2px);
+    }
+
+    .progress-bar-fill {
+      transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-height-screen">
+
+  <div class="cyber-grid-bg"></div>
+  <div class="ambient-orb ambient-orb-1"></div>
+  <div class="ambient-orb ambient-orb-2"></div>
+
+  <!-- Header -->
+  <header class="border-b border-white/10 bg-black/40 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/console.html" class="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition">
+          <i data-lucide="arrow-left" class="w-5 h-5 text-slate-300"></i>
+        </a>
+        <div>
+          <h1 class="text-xl font-bold tracking-wider text-neon-cyan drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]">ACCOUNT WALLET</h1>
+          <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Ecosystem-Wide Usage Dashboard</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white text-sm" id="user-initial">U</div>
+          <div class="flex flex-col">
+            <span class="text-xs text-white" id="user-email">Loading...</span>
+            <span class="text-[9px] font-mono text-neon-cyan tracking-widest uppercase" id="user-plan">Loading Plan...</span>
+          </div>
+        </div>
+        <a href="/pricing.html" class="px-4 py-2 rounded border border-neon-purple/50 bg-neon-purple/10 text-neon-purple text-xs font-bold uppercase tracking-wider hover:bg-neon-purple/20 transition">
+          Upgrade Plan
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-10 space-y-8">
+    
+    <!-- Warning Notification Banners -->
+    <div id="dashboard-warning" class="hidden p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+      <i data-lucide="alert-circle" class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5 animate-pulse"></i>
+      <div>
+        <h4 class="text-sm font-bold text-amber-400">High Wallet Consumption Detected</h4>
+        <p class="text-xs text-amber-300/80 mt-1" id="warning-text">You have used over 80% of your unified monthly allocation. Upgrade to prevent service disruption.</p>
+      </div>
+    </div>
+    
+    <div id="dashboard-critical" class="hidden p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-3">
+      <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5 animate-bounce"></i>
+      <div>
+        <h4 class="text-sm font-bold text-red-400">Wallet Exhausted / Suspended</h4>
+        <p class="text-xs text-red-300/80 mt-1" id="critical-text">Your unified wallet is fully exhausted or blocked. Please upgrade your subscription package to resume chat, builder, and fleet operations.</p>
+      </div>
+    </div>
+
+    <!-- Stats Dashboard Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      
+      <!-- Card 1: Monthly Wallet -->
+      <div class="glass-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold tracking-widest text-slate-400 uppercase font-mono">Monthly Wallet</span>
+            <div class="w-8 h-8 rounded-lg bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center">
+              <i data-lucide="wallet" class="w-4 h-4 text-neon-cyan"></i>
+            </div>
+          </div>
+          <div class="space-y-1 mb-6">
+            <div class="flex items-baseline gap-2">
+              <span class="text-3xl font-extrabold text-white font-mono" id="monthly-used">0</span>
+              <span class="text-slate-500 font-mono text-lg">/</span>
+              <span class="text-xl font-mono text-slate-400" id="monthly-total">0</span>
+            </div>
+            <p class="text-xs text-slate-500">Credits used this month</p>
+          </div>
+        </div>
+        <div>
+          <!-- Animated Progress Bar -->
+          <div class="w-full bg-white/5 rounded-full h-2.5 overflow-hidden mb-4 border border-white/5">
+            <div id="monthly-progress" class="bg-gradient-to-r from-neon-cyan to-neon-blue h-full progress-bar-fill" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400" id="monthly-percent">0% Exhausted</span>
+            <span class="text-slate-500 font-mono" id="monthly-reset">Next cycle: Dynamic</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Rolling Compute Window -->
+      <div class="glass-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-col">
+              <span class="text-xs font-bold tracking-widest text-slate-400 uppercase font-mono">5-Hour Compute Window</span>
+              <span class="text-[9px] text-emerald-400 font-mono uppercase font-bold mt-0.5" id="system-load-badge">System Load: Low (1.0x)</span>
+            </div>
+            <div class="w-8 h-8 rounded-lg bg-neon-purple/10 border border-neon-purple/30 flex items-center justify-center">
+              <i data-lucide="cpu" class="w-4 h-4 text-neon-purple"></i>
+            </div>
+          </div>
+          <div class="space-y-1 mb-6">
+            <div class="flex items-baseline gap-2">
+              <span class="text-3xl font-extrabold text-white font-mono" id="rolling-used">0</span>
+              <span class="text-slate-500 font-mono text-lg">/</span>
+              <span class="text-xl font-mono text-slate-400" id="rolling-total">0</span>
+            </div>
+            <p class="text-xs text-slate-500">Active sliding compute usage</p>
+          </div>
+        </div>
+        <div>
+          <!-- Animated Progress Bar -->
+          <div class="w-full bg-white/5 rounded-full h-2.5 overflow-hidden mb-4 border border-white/5">
+            <div id="rolling-progress" class="bg-gradient-to-r from-neon-purple to-neon-pink h-full progress-bar-fill" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400" id="rolling-percent">0% Used</span>
+            <span class="text-slate-500 font-mono" id="rolling-status">Capacity fully fluid</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Rate Limits & Constraints -->
+      <div class="glass-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold tracking-widest text-slate-400 uppercase font-mono">API Rate Limits</span>
+            <div class="w-8 h-8 rounded-lg bg-neon-pink/10 border border-neon-pink/30 flex items-center justify-center">
+              <i data-lucide="gauge" class="w-4 h-4 text-neon-pink"></i>
+            </div>
+          </div>
+          
+          <div class="space-y-4">
+            <div class="flex justify-between items-center border-b border-white/5 pb-2">
+              <div class="flex flex-col">
+                <span class="text-xs font-semibold text-white">Requests / Minute</span>
+                <span class="text-[10px] text-slate-500 font-mono">Burst mitigation</span>
+              </div>
+              <span class="text-sm font-bold font-mono text-neon-cyan" id="limit-rpm">0 RPM</span>
+            </div>
+            
+            <div class="flex justify-between items-center border-b border-white/5 pb-2">
+              <div class="flex flex-col">
+                <span class="text-xs font-semibold text-white">Requests / Hour</span>
+                <span class="text-[10px] text-slate-500 font-mono">Sustained capacity</span>
+              </div>
+              <span class="text-sm font-bold font-mono text-neon-cyan" id="limit-rph">0 RPH</span>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <div class="flex flex-col">
+                <span class="text-xs font-semibold text-white">Concurrent Agent Workers</span>
+                <span class="text-[10px] text-slate-500 font-mono">Parallel executing routines</span>
+              </div>
+              <span class="text-sm font-bold font-mono text-neon-cyan" id="limit-agents">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage Breakdown Section -->
+    <div class="glass-card p-6">
+      <h3 class="text-sm font-bold text-slate-300 uppercase tracking-widest mb-6 flex items-center gap-2">
+        <i data-lucide="pie-chart" class="w-4 h-4 text-neon-cyan"></i> Unified Workspace breakdown
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Chat usage -->
+        <div class="bg-white/5 rounded-xl border border-white/5 p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="message-square" class="w-4 h-4 text-neon-cyan"></i>
+              <span class="text-sm font-bold text-white">Ionith Chat</span>
+            </div>
+            <span class="text-xs text-slate-500 font-mono" id="breakdown-chat-percent">0%</span>
+          </div>
+          <div>
+            <h4 class="text-xl font-bold font-mono text-white" id="breakdown-chat-used">0</h4>
+            <span class="text-[10px] text-slate-400 font-mono">Credits consumed</span>
+          </div>
+          <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+            <div id="breakdown-chat-progress" class="bg-neon-cyan h-full" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Builder usage -->
+        <div class="bg-white/5 rounded-xl border border-white/5 p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="hammer" class="w-4 h-4 text-neon-blue"></i>
+              <span class="text-sm font-bold text-white">Ionith Builder</span>
+            </div>
+            <span class="text-xs text-slate-500 font-mono" id="breakdown-builder-percent">0%</span>
+          </div>
+          <div>
+            <h4 class="text-xl font-bold font-mono text-white" id="breakdown-builder-used">0</h4>
+            <span class="text-[10px] text-slate-400 font-mono">Credits consumed</span>
+          </div>
+          <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+            <div id="breakdown-builder-progress" class="bg-neon-blue h-full" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Fleet usage -->
+        <div class="bg-white/5 rounded-xl border border-white/5 p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4 text-neon-purple"></i>
+              <span class="text-sm font-bold text-white">Agent Fleet</span>
+            </div>
+            <span class="text-xs text-slate-500 font-mono" id="breakdown-fleet-percent">0%</span>
+          </div>
+          <div>
+            <h4 class="text-xl font-bold font-mono text-white" id="breakdown-fleet-used">0</h4>
+            <span class="text-[10px] text-slate-400 font-mono">Credits consumed</span>
+          </div>
+          <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+            <div id="breakdown-fleet-progress" class="bg-neon-purple h-full" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Usage Logs -->
+    <div class="glass-card p-6">
+      <h3 class="text-sm font-bold text-slate-300 uppercase tracking-widest mb-6 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="activity" class="w-4 h-4 text-neon-purple"></i> Recent Transaction Ledger
+        </div>
+        <span class="text-[10px] text-slate-500 font-mono">Last 20 operations</span>
+      </h3>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="border-b border-white/10 text-slate-400 font-mono uppercase tracking-wider text-[10px]">
+              <th class="py-3 px-4">Timestamp</th>
+              <th class="py-3 px-4">Workspace Module</th>
+              <th class="py-3 px-4">Execution Model</th>
+              <th class="py-3 px-4">Action Type</th>
+              <th class="py-3 px-4 text-right">Debit</th>
+            </tr>
+          </thead>
+          <tbody id="logs-tbody" class="divide-y divide-white/5 font-mono text-slate-300">
+            <!-- Rendered in JS -->
+            <tr>
+              <td colspan="5" class="py-6 text-center text-slate-500">Loading ledger logs...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCghZaZFXQfglTswLP8VP74AvbYLmV2wxw",
+      authDomain: "ionith-omni-agent.web.app",
+      projectId: "ionith-omni-agent",
+      storageBucket: "ionith-omni-agent.firebasestorage.app",
+      messagingSenderId: "174478261991",
+      appId: "1:174478261991:web:73c8957e5f8045dfbcec42"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = '/console.html';
+        return;
+      }
+      
+      document.getElementById('user-email').innerText = user.email;
+      if (user.email) document.getElementById('user-initial').innerText = user.email.charAt(0).toUpperCase();
+
+      // Trigger automatic migration first
+      window.performAutoMigration(db, user.uid);
+
+      // System config listener for load scaling
+      db.collection('system').doc('config').onSnapshot(configDoc => {
+        let systemLoad = 'low';
+        let loadScaling = 1.0;
+        if (configDoc.exists) {
+          systemLoad = configDoc.data().systemLoad || 'low';
+          loadScaling = { low: 1.0, medium: 0.8, high: 0.6, critical: 0.4 }[systemLoad] || 1.0;
+        }
+        
+        document.getElementById('system-load-badge').innerText = `System Load: ${systemLoad.toUpperCase()} (${loadScaling}x)`;
+
+        // User profile snapshot listener for real-time syncing
+        db.collection('users').doc(user.uid).onSnapshot(async doc => {
+          if (!doc.exists) return;
+          const userData = doc.data();
+          const plan = userData.plan || 'free';
+          const limits = window.PLAN_LIMITS[plan] || window.PLAN_LIMITS.free;
+
+          // Render profile plan
+          document.getElementById('user-plan').innerText = `${plan.toUpperCase()} PLAN`;
+          
+          // Limits display
+          document.getElementById('limit-rpm').innerText = limits.rateLimits.RPM === Infinity ? "Unlimited" : `${limits.rateLimits.RPM} RPM`;
+          document.getElementById('limit-rph').innerText = limits.rateLimits.RPH === Infinity ? "Unlimited" : `${limits.rateLimits.RPH} RPH`;
+          document.getElementById('limit-agents').innerText = limits.concurrentAgents === Infinity ? "Unlimited" : limits.concurrentAgents;
+
+          // 1. Monthly Wallet
+          const monthlyWallet = userData.monthlyWallet !== undefined ? userData.monthlyWallet : limits.monthlyWallet;
+          const monthlyUsed = userData.monthlyUsed || 0;
+          const monthlyRemaining = Math.max(0, monthlyWallet - monthlyUsed);
+          
+          document.getElementById('monthly-used').innerText = monthlyUsed.toLocaleString();
+          document.getElementById('monthly-total').innerText = monthlyWallet === Infinity ? "∞" : monthlyWallet.toLocaleString();
+          
+          let monthlyPercent = 0;
+          if (monthlyWallet !== Infinity && monthlyWallet > 0) {
+            monthlyPercent = Math.min(100, Math.floor((monthlyUsed / monthlyWallet) * 100));
+          }
+          document.getElementById('monthly-progress').style.width = `${monthlyPercent}%`;
+          document.getElementById('monthly-percent').innerText = `${monthlyPercent}% Exhausted`;
+          
+          if (userData.nextResetDate) {
+            const rDate = new Date(userData.nextResetDate);
+            document.getElementById('monthly-reset').innerText = `Cycle Resets: ${rDate.toLocaleDateString()}`;
+          } else {
+            document.getElementById('monthly-reset').innerText = `Cycle Resets: Dynamic`;
+          }
+
+          // 2. Rolling compute window
+          const rollingLimit = limits.rollingWindowLimit * loadScaling;
+          const rollingUsed = await window.calculateRollingUsage(db, user.uid);
+          
+          document.getElementById('rolling-used').innerText = rollingUsed.toLocaleString();
+          document.getElementById('rolling-total').innerText = rollingLimit === Infinity ? "∞" : Math.floor(rollingLimit).toLocaleString();
+          
+          let rollingPercent = 0;
+          if (rollingLimit !== Infinity && rollingLimit > 0) {
+            rollingPercent = Math.min(100, Math.floor((rollingUsed / rollingLimit) * 100));
+          }
+          document.getElementById('rolling-progress').style.width = `${rollingPercent}%`;
+          document.getElementById('rolling-percent').innerText = `${rollingPercent}% Capacity Used`;
+
+          if (rollingPercent >= 100) {
+            document.getElementById('rolling-status').innerText = `Compute rate-limited`;
+            document.getElementById('rolling-status').className = 'text-red-400 font-mono animate-pulse';
+          } else if (rollingPercent >= 80) {
+            document.getElementById('rolling-status').innerText = `Approaching threshold`;
+            document.getElementById('rolling-status').className = 'text-amber-400 font-mono';
+          } else {
+            document.getElementById('rolling-status').innerText = `Capacity fully fluid`;
+            document.getElementById('rolling-status').className = 'text-slate-500 font-mono';
+          }
+
+          // Warning / Critical blocks
+          if (plan !== 'enterprise') {
+            if (monthlyPercent >= 100 || rollingPercent >= 100) {
+              document.getElementById('dashboard-critical').classList.remove('hidden');
+              document.getElementById('dashboard-warning').classList.add('hidden');
+            } else if (monthlyPercent >= 80 || rollingPercent >= 80) {
+              document.getElementById('dashboard-warning').classList.remove('hidden');
+              document.getElementById('dashboard-critical').classList.add('hidden');
+              document.getElementById('warning-text').innerText = `Usage is currently high (${Math.max(monthlyPercent, rollingPercent)}%). Please upgrade your plan if you experience slowing.`;
+            } else {
+              document.getElementById('dashboard-warning').classList.add('hidden');
+              document.getElementById('dashboard-critical').classList.add('hidden');
+            }
+          }
+
+          // 3. Breakdown statistics
+          const chatUsed = userData.chatUsage || 0;
+          const builderUsed = userData.builderUsage || 0;
+          const fleetUsed = userData.agentUsage || 0;
+          const totalUsageSum = chatUsed + builderUsed + fleetUsed;
+
+          document.getElementById('breakdown-chat-used').innerText = chatUsed.toLocaleString();
+          document.getElementById('breakdown-builder-used').innerText = builderUsed.toLocaleString();
+          document.getElementById('breakdown-fleet-used').innerText = fleetUsed.toLocaleString();
+
+          let cp = 0, bp = 0, fp = 0;
+          if (totalUsageSum > 0) {
+            cp = Math.floor((chatUsed / totalUsageSum) * 100);
+            bp = Math.floor((builderUsed / totalUsageSum) * 100);
+            fp = Math.floor((fleetUsed / totalUsageSum) * 100);
+          }
+          document.getElementById('breakdown-chat-percent').innerText = `${cp}%`;
+          document.getElementById('breakdown-builder-percent').innerText = `${bp}%`;
+          document.getElementById('breakdown-fleet-percent').innerText = `${fp}%`;
+
+          document.getElementById('breakdown-chat-progress').style.width = `${cp}%`;
+          document.getElementById('breakdown-builder-progress').style.width = `${bp}%`;
+          document.getElementById('breakdown-fleet-progress').style.width = `${fp}%`;
+        });
+      });
+
+      // Listen to transaction logs
+      db.collection('users').doc(user.uid).collection('usageEvents')
+        .orderBy('timestamp', 'desc')
+        .limit(20)
+        .onSnapshot(eventsSnap => {
+          const tbody = document.getElementById('logs-tbody');
+          if (eventsSnap.empty) {
+            tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">No transactions recorded yet.</td></tr>`;
+            return;
+          }
+
+          let rowsHtml = '';
+          eventsSnap.forEach(ev => {
+            const evData = ev.data();
+            let dateStr = 'Pending...';
+            if (evData.timestamp) {
+              const d = evData.timestamp.toDate ? evData.timestamp.toDate() : new Date(evData.timestamp);
+              dateStr = d.toLocaleString();
+            }
+
+            const moduleMap = { chat: 'Ionith Chat', builder: 'Builder AI', fleet: 'Agent Fleet' };
+            const moduleName = moduleMap[evData.product] || evData.product;
+            const modelName = evData.model || 'mimo-v2.5';
+            const action = evData.requestType || 'generation';
+            const debit = evData.credits || 0;
+
+            rowsHtml += `
+              <tr class="hover:bg-white/5 transition duration-150">
+                <td class="py-3 px-4 text-slate-400 text-[11px]">${dateStr}</td>
+                <td class="py-3 px-4 font-bold text-white">${moduleName}</td>
+                <td class="py-3 px-4 text-slate-400">${modelName}</td>
+                <td class="py-3 px-4 uppercase text-[10px] tracking-wider text-slate-500 font-semibold">${action}</td>
+                <td class="py-3 px-4 text-right font-bold text-red-400 font-mono">- ${debit.toLocaleString()}</td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = rowsHtml;
+        });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IONITH — Upgrade Plan</title>
+  <script>
+    window.tailwind = {
+      config: {
+        theme: {
+          extend: {
+            colors: {
+              'neon-cyan': '#00f0ff',
+              'neon-blue': '#3b82f6',
+              'neon-purple': '#a855f7',
+              'neon-pink': '#ec4899',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .cyber-grid-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      pointer-events: none;
+      background: 
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(168, 85, 247, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(168, 85, 247, 0.015) 1px, transparent 1px);
+      background-size: 60px 60px, 60px 60px, 20px 20px, 20px 20px;
+    }
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: -10;
+    }
+    .ambient-orb-1 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.08), transparent 70%);
+      top: -100px;
+      left: -100px;
+      animation: float 8s ease-in-out infinite;
+    }
+    .ambient-orb-2 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.06), transparent 70%);
+      bottom: -50px;
+      right: -50px;
+      animation: float 10s ease-in-out infinite reverse;
+    }
+    
+    .card {
+      background: rgba(18, 18, 18, 0.4) !important;
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0, 240, 255, 0.3) !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.08), inset 0 0 25px rgba(0, 240, 255, 0.03), 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    @keyframes modalSlideUp {
+      from { transform: scale(0.95) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .modal-content-anim {
+      animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    
+    .btn-primary {
+      background: #ffffff;
+      color: #000000;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      text-align: center;
+      display: block;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    
+    .btn-outline {
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      text-align: center;
+      display: block;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-outline:hover:not(.cursor-not-allowed) {
+      background: rgba(255,255,255,0.05);
+    }
+    
+    /* Toggle Pill Styles */
+    .toggle-pill {
+      background: rgba(255, 255, 255, 0.02) !important;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      padding: 3px;
+    }
+    .toggle-btn {
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 9999px;
+      transition: all 0.2s;
+      border: 1px solid transparent; /* prevent height shifts */
+    }
+    .toggle-btn.active {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .toggle-btn:not(.active) {
+      color: #71717a;
+    }
+    .toggle-btn:not(.active):hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center p-6 pb-16 overflow-x-hidden">
+
+  <div class="pointer-events-none select-none fixed inset-0 overflow-hidden z-[-10]">
+    <div class="cyber-grid-bg"></div>
+    <div class="ambient-orb ambient-orb-1"></div>
+    <div class="ambient-orb ambient-orb-2"></div>
+  </div>
+
+  <!-- Navbar -->
+  <div class="w-full max-w-6xl mb-8 flex justify-between items-center">
+    <a href="/console.html" class="flex items-center gap-2 text-gray-400 hover:text-white transition text-sm">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+      Back to Console
+    </a>
+    <span class="font-bold tracking-widest text-sm">IONITH</span>
+  </div>
+
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold mb-3">Choose your intelligence.</h1>
+    <p class="text-gray-400 text-sm max-w-md mx-auto">
+      Scale your agentic workloads with high-quota token pools and vision models.
+    </p>
+  </div>
+
+  <!-- Double Switch Container -->
+  <div class="flex flex-col sm:flex-row items-center gap-4 mb-10">
+    <!-- Switch 1: Chat vs Builder -->
+    <div class="flex toggle-pill h-10 items-center">
+      <button onclick="switchProductType('chat')" id="type-chat" class="toggle-btn active">Ionith Chat</button>
+      <button onclick="switchProductType('builder')" id="type-builder" class="toggle-btn">Ionith Builder</button>
+      <button onclick="switchProductType('fleet')" id="type-fleet" class="toggle-btn">Agent Fleet</button>
+    </div>
+
+    <!-- Switch 2: Monthly vs Yearly -->
+    <div class="flex flex-col items-center gap-2">
+      <div class="flex toggle-pill h-10 items-center">
+        <button onclick="switchBillingCycle('monthly')" id="cycle-monthly" class="toggle-btn active">Monthly Billing</button>
+        <button onclick="switchBillingCycle('yearly')" id="cycle-yearly" class="toggle-btn">Yearly Billing</button>
+      </div>
+      <span class="text-[10px] text-emerald-400 font-bold tracking-wider uppercase">Save 15-20% With Annual Billing</span>
+    </div>
+  </div>
+
+  <!-- Main Pricing Cards Deck -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full mb-12">
+
+    <!-- FREE PLAN -->
+    <div class="card flex flex-col">
+      <h3 class="text-xl font-semibold mb-2">Free</h3>
+      <div class="text-3xl font-bold mb-1 flex items-baseline gap-1.5 flex-wrap">
+        <span>₹0</span>
+        <span id="free-billing-suffix" class="text-[10px] text-gray-500 font-normal opacity-85">INR / month (inclusive of GST)</span>
+      </div>
+      <span class="text-[10px] text-transparent select-none mb-3 block">&nbsp;</span>
+      <p class="text-xs text-slate-400 mb-5 leading-relaxed min-h-[48px]" id="free-quota-label">Lightweight conversational quota for everyday tasks, quick brainstorming, and standard automation workflows.</p>
+      <ul class="text-xs text-gray-400 space-y-3 mb-8 flex-1" id="free-features">
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Ionith Flash Model</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Standard Speed</li>
+      </ul>
+      <div class="btn-outline cursor-not-allowed opacity-50 w-full text-xs text-center" id="btn-free">
+        Current Plan
+      </div>
+    </div>
+
+    <!-- PRO PLAN -->
+    <div class="card flex flex-col border-white/20 relative">
+      <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-bold px-2.5 py-0.5 rounded-full tracking-wider uppercase">
+        MOST POPULAR
+      </div>
+      <h3 class="text-xl font-semibold mb-2">Pro</h3>
+      <div class="text-3xl font-bold mb-1 flex items-baseline gap-1.5 flex-wrap">
+        <span class="text-xs text-slate-500 line-through font-normal mr-1" id="pro-old-price">₹1,499</span>
+        <span id="pro-price">₹699</span>
+        <span id="pro-billing-suffix" class="text-[10px] text-gray-500 font-normal opacity-85">INR / month (inclusive of GST)</span>
+      </div>
+      <span class="text-[10px] text-emerald-400 font-medium mb-3 block" id="pro-billing-cycle-label">billed monthly</span>
+      <p class="text-xs text-slate-400 mb-5 leading-relaxed min-h-[48px]" id="pro-quota-label">Deep contextual reasoning memory built for rigorous research, long files, and sustained content creation.</p>
+      <ul class="text-xs text-gray-400 space-y-3 mb-8 flex-1" id="pro-features">
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Everything in Free</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Ionith Vision (Images)</li>
+      </ul>
+      <button id="btn-pro" onclick="processPayment('pro')" class="btn-primary w-full text-xs font-semibold">
+        Upgrade to Pro
+      </button>
+    </div>
+
+    <!-- MAX PLAN -->
+    <div class="card flex flex-col">
+      <h3 class="text-xl font-semibold mb-2">Max</h3>
+      <div class="text-3xl font-bold mb-1 flex items-baseline gap-1.5 flex-wrap">
+        <span class="text-xs text-slate-500 line-through font-normal mr-1" id="max-old-price">₹2,599</span>
+        <span id="max-price">₹1,299</span>
+        <span id="max-billing-suffix" class="text-[10px] text-gray-500 font-normal opacity-85">INR / month (inclusive of GST)</span>
+      </div>
+      <span class="text-[10px] text-emerald-400 font-medium mb-3 block" id="max-billing-cycle-label">billed monthly</span>
+      <p class="text-xs text-slate-400 mb-5 leading-relaxed min-h-[48px]" id="max-quota-label">Heavy-duty processing runway engineered for continuous power users executing complex multi-turn workflows.</p>
+      <ul class="text-xs text-gray-400 space-y-3 mb-8 flex-1" id="max-features">
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Everything in Pro</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Priority API Routing</li>
+      </ul>
+      <button id="btn-max" onclick="processPayment('max')" class="btn-outline w-full text-xs font-semibold">
+        Upgrade to Max
+      </button>
+    </div>
+
+    <!-- ENTERPRISE PLAN -->
+    <div class="card flex flex-col">
+      <h3 class="text-xl font-semibold mb-2">Enterprise</h3>
+      <div class="text-3xl font-bold mb-1 flex items-baseline gap-1.5 flex-wrap">
+        <span>Custom</span>
+      </div>
+      <span class="text-[10px] text-transparent select-none mb-3 block">&nbsp;</span>
+      <p class="text-xs text-slate-400 mb-5 leading-relaxed min-h-[48px]" id="ent-quota-label">Completely uncapped workflow thresholds tailored precisely for organizational data layers and team coordination.</p>
+      <ul class="text-xs text-gray-400 space-y-3 mb-8 flex-1" id="ent-features">
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Custom BYOK Integrations</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i> Dedicated Support</li>
+      </ul>
+      <button id="btn-enterprise" onclick="openEnterpriseModal()" class="btn-outline w-full text-xs font-semibold">
+        Contact Sales
+      </button>
+    </div>
+  </div>
+
+  <!-- ADDON PACKS SECTION -->
+  <div id="packs-section" class="mt-16 w-full max-w-6xl hidden">
+    <div class="text-center mb-8 border-t border-white/5 pt-12">
+      <h2 class="text-xl font-bold mb-2">Builder Addon Packs</h2>
+      <p class="text-gray-400 text-xs max-w-md mx-auto">
+        Buy extra tokens to use when your daily limit is exhausted. Addons remain locked while daily limit is active.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+      <!-- 10M Pack -->
+      <div class="card flex flex-col items-center text-center p-6">
+        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4"><i data-lucide="layers" class="w-5 h-5 text-slate-300"></i></div>
+        <h4 class="text-md font-bold mb-1">10M Addon Pack</h4>
+        <div class="text-2xl font-bold mb-4">₹1,200</div>
+        <p class="text-xs text-slate-500 mb-6 max-w-xs">One-time token addition. Used only when your daily limit runs dry. Locked upon daily renewal.</p>
+        <button id="btn-pack-10m" onclick="processPackPayment('pack_10m', 1200, 10000000)" class="btn-primary w-full text-xs font-semibold">Buy 10M Pack</button>
+      </div>
+
+      <!-- 30M Pack -->
+      <div class="card flex flex-col items-center text-center p-6">
+        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4"><i data-lucide="zap" class="w-5 h-5 text-yellow-400"></i></div>
+        <h4 class="text-md font-bold mb-1">30M Addon Pack</h4>
+        <div class="text-2xl font-bold mb-4">₹1,600</div>
+        <p class="text-xs text-slate-500 mb-6 max-w-xs">One-time token addition. Used only when your daily limit runs dry. Locked upon daily renewal.</p>
+        <button id="btn-pack-30m" onclick="processPackPayment('pack_30m', 1600, 30000000)" class="btn-primary w-full text-xs font-semibold">Buy 30M Pack</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MULTI-STEP ENTERPRISE LEAD FORM MODAL -->
+  <div id="enterprise-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-[#0b0b0f]/80 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl modal-content-anim">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-[#17171e]/50 border-b border-white/5 flex items-center justify-between">
+        <span class="text-xs font-bold font-mono tracking-wider uppercase text-slate-300">Contact Enterprise</span>
+        <button onclick="closeEnterpriseModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-4">
+        <!-- Progress Bar -->
+        <div class="flex items-center justify-between text-[10px] text-gray-500 font-mono">
+          <span id="form-step-indicator">Step 1 of 2</span>
+          <div class="w-24 h-1 bg-white/5 rounded-full overflow-hidden">
+            <div id="form-progress-bar" class="h-full bg-white transition-all duration-300" style="width: 50%"></div>
+          </div>
+        </div>
+
+        <!-- Step 1: Contact Details -->
+        <div id="form-step-1" class="space-y-3">
+          <div>
+            <label class="block text-[10px] font-mono text-slate-500 uppercase mb-1">Full Name</label>
+            <input type="text" id="ent-name" class="w-full bg-[#1c1c24] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/30 transition">
+          </div>
+          <div>
+            <label class="block text-[10px] font-mono text-slate-500 uppercase mb-1">Work Email</label>
+            <input type="email" id="ent-email" class="w-full bg-[#1c1c24] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/30 transition">
+          </div>
+          <div>
+            <label class="block text-[10px] font-mono text-slate-500 uppercase mb-1">Company Name</label>
+            <input type="text" id="ent-company" class="w-full bg-[#1c1c24] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/30 transition">
+          </div>
+        </div>
+
+        <!-- Step 2: Use Case details -->
+        <div id="form-step-2" class="space-y-3 hidden">
+          <div>
+            <label class="block text-[10px] font-mono text-slate-500 uppercase mb-1">Intended Use Case</label>
+            <textarea id="ent-usecase" rows="3" class="w-full bg-[#1c1c24] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/30 transition placeholder-slate-600" placeholder="Please describe how you plan to use Ionith..."></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] font-mono text-slate-500 uppercase mb-1">Expected Daily Token Budget</label>
+            <select id="ent-volume" class="w-full bg-[#1c1c24] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/30 transition">
+              <option value="50M-100M">50M - 100M tokens/day</option>
+              <option value="100M-500M">100M - 500M tokens/day</option>
+              <option value="500M+">500M+ tokens/day</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Success view -->
+        <div id="form-success" class="hidden text-center py-6 space-y-3">
+          <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 mb-1">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white">Request Received</h4>
+          <p class="text-xs text-slate-400">Our Enterprise team will reach out to you shortly.</p>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div id="form-footer" class="px-6 py-4 bg-[#17171e] border-t border-white/5 flex items-center justify-between">
+        <button id="form-back-btn" onclick="enterpriseFormBack()" class="px-3 py-1.5 rounded bg-white/5 border border-white/10 hover:border-white/20 text-white text-[10px] font-semibold transition invisible">Back</button>
+        <button id="form-next-btn" onclick="enterpriseFormNext()" class="px-4 py-1.5 rounded bg-white text-black font-semibold text-[10px] transition">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCghZaZFXQfglTswLP8VP74AvbYLmV2wxw",
+      authDomain: "ionith-omni-agent.web.app",
+      projectId: "ionith-omni-agent",
+      storageBucket: "ionith-omni-agent.firebasestorage.app",
+      messagingSenderId: "174478261991",
+      appId: "1:174478261991:web:73c8957e5f8045dfbcec42"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // State parameters
+    let currentType = 'chat'; // 'chat' or 'builder'
+    let currentCycle = 'monthly'; // 'monthly' or 'yearly'
+    let activeUserPlan = 'free';
+    let hasActivePack = false;
+
+    // Quotas configuration
+    const dailyLimits = { free: 1500000, pro: 7000000, max: 10000000, enterprise: 50000000 };
+
+    // Pricing dataset
+    // Pricing dataset
+    const plansData = {
+      chat: {
+        monthly: {
+          free: {
+            price: "₹0",
+            oldPrice: null,
+            description: "Standard Usage Allowance. Lightweight conversational access for everyday tasks, quick brainstorming, and standard automation.",
+            features: ["Ionith Flash Model access", "Standard Speed", "25,000 monthly credits", "Safe compute threshold"]
+          },
+          pro: {
+            price: "₹699",
+            oldPrice: "₹1,499",
+            description: "High Usage Allowance. High contextual reasoning memory engineered for rigorous research, long files, and persistent chats.",
+            features: ["Priority Processing", "Ionith Vision (Images)", "500,000 monthly credits", "High compute threshold"]
+          },
+          max: {
+            price: "₹1,299",
+            oldPrice: "₹2,599",
+            description: "Very High Usage Allowance. Heavy-duty processing runway engineered for continuous power users executing complex multi-turn workflows.",
+            features: ["Advanced Reasoning", "Fastest Generation", "3,000,000 monthly credits", "Max compute threshold"]
+          },
+          enterprise: {
+            price: "Custom",
+            oldPrice: null,
+            description: "Custom Usage Allowance. Full organizational deployment with custom SLAs, dedicated infrastructure, and team spaces.",
+            features: ["Team Workspaces", "Internal Knowledge Bases", "Dedicated Support", "Uncapped credit pools"]
+          }
+        },
+        yearly: {
+          free: {
+            price: "₹0",
+            oldPrice: null,
+            description: "Standard Usage Allowance. Lightweight conversational access for everyday tasks, quick brainstorming, and standard automation.",
+            features: ["Ionith Flash Model access", "Standard Speed", "25,000 monthly credits", "Safe compute threshold"]
+          },
+          pro: {
+            price: "₹6,999",
+            oldPrice: "₹14,988",
+            description: "High Usage Allowance. High contextual reasoning memory engineered for rigorous research, long files, and persistent chats.",
+            features: ["Priority Processing", "Ionith Vision (Images)", "500,000 monthly credits", "High compute threshold"]
+          },
+          max: {
+            price: "₹12,999",
+            oldPrice: "₹25,988",
+            description: "Very High Usage Allowance. Heavy-duty processing runway engineered for continuous power users executing complex multi-turn workflows.",
+            features: ["Advanced Reasoning", "Fastest Generation", "3,000,000 monthly credits", "Max compute threshold"]
+          },
+          enterprise: {
+            price: "Custom",
+            oldPrice: null,
+            description: "Custom Usage Allowance. Full organizational deployment with custom SLAs, dedicated infrastructure, and team spaces.",
+            features: ["Team Workspaces", "Internal Knowledge Bases", "Dedicated Support", "Uncapped credit pools"]
+          }
+        }
+      },
+      fleet: {
+        monthly: {
+          free: {
+            price: "₹0",
+            oldPrice: null,
+            description: "Standard Usage Allowance. Access to core workforce agents only. Safe slot concurrency bounds.",
+            features: ["Core Agent Library", "1 Selected Agent Slot", "25,000 monthly credits", "Safe compute threshold"]
+          },
+          pro: {
+            price: "₹699",
+            oldPrice: "₹1,499",
+            description: "High Usage Allowance. Access to premium agents and multiple concurrent workforce slot assignments.",
+            features: ["5 Concurrent Agent Slots", "Priority Processing", "500,000 monthly credits", "High compute threshold"]
+          },
+          max: {
+            price: "₹1,299",
+            oldPrice: "₹2,599",
+            description: "Very High Usage Allowance. Advanced multi-agent workforce orchestration, full premium suite accessibility, and extreme slot capacity.",
+            features: ["20 Concurrent Agent Slots", "Multi-Agent Orchestration", "3,000,000 monthly credits", "Max compute threshold"]
+          },
+          enterprise: {
+            price: "Custom",
+            oldPrice: null,
+            description: "Custom Usage Allowance. Custom multi-seat agent overrides, completely uncapped slot capabilities, and enterprise workflow support.",
+            features: ["Unlimited Agent Slots", "Enterprise-Only Agents", "Dedicated Support", "Uncapped credit pools"]
+          }
+        },
+        yearly: {
+          free: {
+            price: "₹0",
+            oldPrice: null,
+            description: "Standard Usage Allowance. Access to core workforce agents only. Safe slot concurrency bounds.",
+            features: ["Core Agent Library", "1 Selected Agent Slot", "25,000 monthly credits", "Safe compute threshold"]
+          },
+          pro: {
+            price: "₹6,999",
+            oldPrice: "₹14,988",
+            description: "High Usage Allowance. Access to premium agents and multiple concurrent workforce slot assignments.",
+            features: ["5 Concurrent Agent Slots", "Priority Processing", "500,000 monthly credits", "High compute threshold"]
+          },
+          max: {
+            price: "₹12,999",
+            oldPrice: "₹25,988",
+            description: "Very High Usage Allowance. Advanced multi-agent workforce orchestration, full premium suite accessibility, and extreme slot capacity.",
+            features: ["20 Concurrent Agent Slots", "Multi-Agent Orchestration", "3,000,000 monthly credits", "Max compute threshold"]
+          },
+          enterprise: {
+            price: "Custom",
+            oldPrice: null,
+            description: "Custom Usage Allowance. Custom multi-seat agent overrides, completely uncapped slot capabilities, and enterprise workflow support.",
+            features: ["Unlimited Agent Slots", "Enterprise-Only Agents", "Dedicated Support", "Uncapped credit pools"]
+          }
+        }
+      },
+      builder: {
+        monthly: {
+          free: {
+            price: "₹0",
+            oldPrice: null,
+            description: "Standard Usage Allowance. Basic React & HTML prototyping engine with safe file compilation structures.",
+            features: ["Basic code compilation", "Standard preview sandbox", "3 Builder Projects", "25,000 monthly credits"]
+          },
+          pro: {
+            price: "₹699",
+            oldPrice: "₹1,499",
+            description: "High Usage Allowance. Active elements inspector targeting and seamless GitHub sync pipelines.",
+            features: ["Active Elements Inspector", "Seamless GitHub Repository Sync", "25 Builder Projects", "500,000 monthly credits"]
+          },
+          max: {
+            price: "₹1,299",
+            oldPrice: "₹2,599",
+            description: "Very High Usage Allowance. Heavy multi-file full-stack production pipelines, priority queue allocation, and experimental builds.",
+            features: ["Heavy full-stack pipelines", "Priority queue allocation", "Unlimited Projects", "3,000,000 monthly credits"]
+          },
+          enterprise: {
+            price: "Custom",
+            oldPrice: null,
+            description: "Custom Usage Allowance. Multi-seat environment variable vaults, dedicated production build engines, and enterprise routing.",
+            features: ["Dedicated build engines", "Multi-seat environment vaults", "Unlimited Projects", "Uncapped credit pools"]
+          }
+        },
+        yearly: {
+          free: {
+            price: "₹0",
+            oldPrice: null,
+            description: "Standard Usage Allowance. Basic React & HTML prototyping engine with safe file compilation structures.",
+            features: ["Basic code compilation", "Standard preview sandbox", "3 Builder Projects", "25,000 monthly credits"]
+          },
+          pro: {
+            price: "₹6,999",
+            oldPrice: "₹14,988",
+            description: "High Usage Allowance. Active elements inspector targeting and seamless GitHub sync pipelines.",
+            features: ["Active Elements Inspector", "Seamless GitHub Repository Sync", "25 Builder Projects", "500,000 monthly credits"]
+          },
+          max: {
+            price: "₹12,999",
+            oldPrice: "₹25,988",
+            description: "Very High Usage Allowance. Heavy multi-file full-stack production pipelines, priority queue allocation, and experimental builds.",
+            features: ["Heavy full-stack pipelines", "Priority queue allocation", "Unlimited Projects", "3,000,000 monthly credits"]
+          },
+          enterprise: {
+            price: "Custom",
+            oldPrice: null,
+            description: "Custom Usage Allowance. Multi-seat environment variable vaults, dedicated production build engines, and enterprise routing.",
+            features: ["Dedicated build engines", "Multi-seat environment vaults", "Unlimited Projects", "Uncapped credit pools"]
+          }
+        }
+      }
+    };
+
+    // Toggle switch actions
+    function switchProductType(type) {
+      currentType = type;
+      document.getElementById('type-chat').className = type === 'chat' ? 'toggle-btn active' : 'toggle-btn';
+      document.getElementById('type-builder').className = type === 'builder' ? 'toggle-btn active' : 'toggle-btn';
+      document.getElementById('type-fleet').className = type === 'fleet' ? 'toggle-btn active' : 'toggle-btn';
+      
+      // Packs section visible only for builder plans
+      document.getElementById('packs-section').style.display = type === 'builder' ? 'block' : 'none';
+
+      updateCardsUI();
+    }
+
+    function switchBillingCycle(cycle) {
+      currentCycle = cycle;
+      document.getElementById('cycle-monthly').className = cycle === 'monthly' ? 'toggle-btn active' : 'toggle-btn';
+      document.getElementById('cycle-yearly').className = cycle === 'yearly' ? 'toggle-btn active' : 'toggle-btn';
+      
+      updateCardsUI();
+    }
+
+    // Update cards markup dynamically
+    function updateCardsUI() {
+      const data = plansData[currentType][currentCycle];
+      const suffixText = currentCycle === 'monthly' ? 'INR / month (inclusive of GST)' : 'INR / year (inclusive of GST)';
+      
+      // Update suffixes
+      const freeSuffix = document.getElementById('free-billing-suffix');
+      if (freeSuffix) freeSuffix.innerText = suffixText;
+      const proSuffix = document.getElementById('pro-billing-suffix');
+      if (proSuffix) proSuffix.innerText = suffixText;
+      const maxSuffix = document.getElementById('max-billing-suffix');
+      if (maxSuffix) maxSuffix.innerText = suffixText;
+
+      // Update Free Plan
+      document.getElementById('free-quota-label').innerText = data.free.description;
+      updateFeaturesList('free-features', data.free.features);
+
+      // Update Pro Plan
+      document.getElementById('pro-price').innerText = data.pro.price;
+      const proOld = document.getElementById('pro-old-price');
+      if (data.pro.oldPrice) {
+        proOld.innerText = data.pro.oldPrice;
+        proOld.style.display = 'inline';
+      } else {
+        proOld.style.display = 'none';
+      }
+      document.getElementById('pro-billing-cycle-label').innerText = currentCycle === 'monthly' ? 'billed monthly' : 'billed yearly';
+      document.getElementById('pro-quota-label').innerText = data.pro.description;
+      updateFeaturesList('pro-features', data.pro.features);
+
+      // Update Max Plan
+      document.getElementById('max-price').innerText = data.max.price;
+      const maxOld = document.getElementById('max-old-price');
+      if (data.max.oldPrice) {
+        maxOld.innerText = data.max.oldPrice;
+        maxOld.style.display = 'inline';
+      } else {
+        maxOld.style.display = 'none';
+      }
+      document.getElementById('max-billing-cycle-label').innerText = currentCycle === 'monthly' ? 'billed monthly' : 'billed yearly';
+      document.getElementById('max-quota-label').innerText = data.max.description;
+      updateFeaturesList('max-features', data.max.features);
+
+      // Update Enterprise Plan
+      document.getElementById('ent-quota-label').innerText = data.enterprise.description;
+      updateFeaturesList('ent-features', data.enterprise.features);
+
+      // Sync active states based on current user plan
+      syncButtonsState();
+    }
+
+    function updateFeaturesList(elementId, features) {
+      const el = document.getElementById(elementId);
+      el.innerHTML = features.map(f => `
+        <li class="flex items-center gap-2">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-green-500"></i>
+          ${f}
+        </li>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    // Adjust buttons (e.g. Current Plan labels)
+    function syncButtonsState() {
+      const activePlanField = currentType === 'chat' ? activeUserPlan : (window.activeUserBuilderPlan || 'free');
+
+      // Free Button
+      const freeBtn = document.getElementById('btn-free');
+      if (activePlanField === 'free') {
+        freeBtn.innerText = 'Current Plan';
+        freeBtn.className = 'btn-outline cursor-not-allowed opacity-50 w-full text-xs';
+        freeBtn.onclick = null;
+      } else {
+        freeBtn.innerText = 'Downgrade to Free';
+        freeBtn.className = 'btn-outline w-full text-xs text-red-400 hover:bg-red-950/20 hover:text-red-300 hover:border-red-500/50 transition';
+        freeBtn.onclick = () => downgradeToFree();
+      }
+
+      // Pro & Max Buttons
+      ['pro', 'max'].forEach(tier => {
+        const btn = document.getElementById(`btn-${tier}`);
+        if (activePlanField === tier) {
+          btn.innerText = 'Current Plan';
+          btn.className = 'btn-outline cursor-not-allowed opacity-50 w-full text-xs';
+          btn.onclick = null;
+        } else {
+          btn.innerText = `Upgrade to ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+          btn.className = tier === 'pro' ? 'btn-primary w-full text-xs font-semibold' : 'btn-outline w-full text-xs font-semibold';
+          btn.onclick = () => processPayment(tier);
+        }
+      });
+
+      // Packs Buttons disabled check
+      const btn10m = document.getElementById('btn-pack-10m');
+      const btn30m = document.getElementById('btn-pack-30m');
+      if (btn10m && btn30m) {
+        if (hasActivePack) {
+          btn10m.innerText = 'Active Addon Active';
+          btn10m.disabled = true;
+          btn10m.className = 'btn-outline cursor-not-allowed opacity-50 w-full text-xs';
+          
+          btn30m.innerText = 'Active Addon Active';
+          btn30m.disabled = true;
+          btn30m.className = 'btn-outline cursor-not-allowed opacity-50 w-full text-xs';
+        } else {
+          btn10m.innerText = 'Buy 10M Pack';
+          btn10m.disabled = false;
+          btn10m.className = 'btn-primary w-full text-xs font-semibold';
+          
+          btn30m.innerText = 'Buy 30M Pack';
+          btn30m.disabled = false;
+          btn30m.className = 'btn-primary w-full text-xs font-semibold';
+        }
+      }
+    }
+
+    // Process Razorpay Upgrade payments
+    async function processPayment(planId) {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Please log in from the console first!");
+        window.location.href = '/console.html';
+        return;
+      }
+
+      // Resolve prices
+      let amount = 0;
+      if (currentType === 'chat') {
+        if (currentCycle === 'monthly') {
+          amount = planId === 'pro' ? 69900 : 129900;
+        } else {
+          amount = planId === 'pro' ? 999900 : 1899900;
+        }
+      } else { // builder plans
+        if (currentCycle === 'monthly') {
+          amount = planId === 'pro' ? 69900 : 119900;
+        } else {
+          amount = planId === 'pro' ? 1999900 : 2299900;
+        }
+      }
+
+      const description = `Upgrade to Ionith ${currentType === 'builder' ? 'Builder ' : ''}${planId.toUpperCase()} (${currentCycle})`;
+
+      const purchaseDate = new Date();
+      const expiryDate = new Date();
+      if (currentCycle === 'monthly') {
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+      } else {
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+      }
+
+      const options = {
+        key: "YOUR_RAZORPAY_KEY_ID",
+        amount: amount,
+        currency: "INR",
+        name: "Ionith AI",
+        description: description,
+        handler: async function(response) {
+          const updateObj = {};
+          if (currentType === 'chat') {
+            updateObj.plan = planId;
+            updateObj.planCycle = currentCycle;
+            updateObj.planPurchaseDate = purchaseDate.toISOString();
+            updateObj.planExpiryDate = expiryDate.toISOString();
+            updateObj.planStatus = 'active';
+          } else {
+            updateObj.builderPlan = planId;
+            updateObj.builderPlanCycle = currentCycle;
+            updateObj.builderPlanPurchaseDate = purchaseDate.toISOString();
+            updateObj.builderPlanExpiryDate = expiryDate.toISOString();
+            updateObj.builderPlanStatus = 'active';
+            // Grant daily limit tokens instantly
+            updateObj.builderTokens = dailyLimits[planId] || 1500000;
+            updateObj.builderLastReset = purchaseDate.toISOString().split('T')[0];
+          }
+
+          await db.collection('users').doc(user.uid).set(updateObj, { merge: true });
+          alert("Payment Successful! Welcome to " + planId.toUpperCase());
+          window.location.href = '/console.html';
+        },
+        prefill: { email: user.email },
+        theme: { color: "#000000" }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+    }
+
+    // Process Token Pack addon payments
+    async function processPackPayment(packId, price, tokenQuota) {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Please log in from the console first!");
+        window.location.href = '/console.html';
+        return;
+      }
+
+      if (hasActivePack) {
+        alert("You already have an active token pack. You must exhaust its balance before purchasing another pack.");
+        return;
+      }
+
+      const options = {
+        key: "YOUR_RAZORPAY_KEY_ID",
+        amount: price * 100, // INR in paisa
+        currency: "INR",
+        name: "Ionith AI",
+        description: `Purchase Builder ${tokenQuota / 1000000}M Token Addon`,
+        handler: async function(response) {
+          await db.collection('users').doc(user.uid).set({
+            packTokens: firebase.firestore.FieldValue.increment(tokenQuota),
+            activePackId: packId
+          }, { merge: true });
+
+          alert(`Successfully purchased the ${tokenQuota / 1000000}M token pack! Addon balance added.`);
+        },
+        prefill: { email: user.email },
+        theme: { color: "#000000" }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+    }
+
+    // Process Downgrades
+    async function downgradeToFree() {
+      const planName = currentType === 'chat' ? 'Chat plan' : 'Builder plan';
+      if (confirm(`Are you sure you want to downgrade your ${planName} to Free?`)) {
+        const user = auth.currentUser;
+        if (user) {
+          const updateObj = {};
+          if (currentType === 'chat') {
+            updateObj.plan = 'free';
+          } else {
+            updateObj.builderPlan = 'free';
+            updateObj.builderTokens = 1500000;
+          }
+          await db.collection('users').doc(user.uid).update(updateObj);
+          alert("Downgraded successfully.");
+        }
+      }
+    }
+
+    // Multi-step Enterprise Lead Form Modal handlers
+    let currentFormStep = 1;
+    function openEnterpriseModal() {
+      const user = auth.currentUser;
+      if (user) {
+        document.getElementById('ent-email').value = user.email || '';
+      }
+      currentFormStep = 1;
+      showFormStep(1);
+      document.getElementById('enterprise-modal').classList.remove('hidden');
+      document.getElementById('enterprise-modal').classList.add('flex');
+    }
+
+    function closeEnterpriseModal() {
+      document.getElementById('enterprise-modal').classList.add('hidden');
+      document.getElementById('enterprise-modal').classList.remove('flex');
+    }
+
+    function showFormStep(step) {
+      document.getElementById('form-step-1').classList.toggle('hidden', step !== 1);
+      document.getElementById('form-step-2').classList.toggle('hidden', step !== 2);
+      document.getElementById('form-success').classList.toggle('hidden', step !== 3);
+      
+      document.getElementById('form-footer').classList.toggle('hidden', step === 3);
+
+      const indicator = document.getElementById('form-step-indicator');
+      const progressBar = document.getElementById('form-progress-bar');
+      const nextBtn = document.getElementById('form-next-btn');
+      const backBtn = document.getElementById('form-back-btn');
+
+      if (step === 1) {
+        indicator.innerText = 'Step 1 of 2';
+        progressBar.style.width = '50%';
+        backBtn.classList.add('invisible');
+        nextBtn.innerText = 'Next';
+      } else if (step === 2) {
+        indicator.innerText = 'Step 2 of 2';
+        progressBar.style.width = '100%';
+        backBtn.classList.remove('invisible');
+        nextBtn.innerText = 'Submit';
+      }
+    }
+
+    function enterpriseFormNext() {
+      if (currentFormStep === 1) {
+        const name = document.getElementById('ent-name').value.trim();
+        const email = document.getElementById('ent-email').value.trim();
+        const company = document.getElementById('ent-company').value.trim();
+        if (!name || !email || !company) {
+          alert('Please fill out all fields.');
+          return;
+        }
+        currentFormStep = 2;
+        showFormStep(2);
+      } else if (currentFormStep === 2) {
+        submitEnterpriseLead();
+      }
+    }
+
+    function enterpriseFormBack() {
+      if (currentFormStep === 2) {
+        currentFormStep = 1;
+        showFormStep(1);
+      }
+    }
+
+    async function submitEnterpriseLead() {
+      const name = document.getElementById('ent-name').value.trim();
+      const email = document.getElementById('ent-email').value.trim();
+      const company = document.getElementById('ent-company').value.trim();
+      const usecase = document.getElementById('ent-usecase').value.trim();
+      const volume = document.getElementById('ent-volume').value;
+
+      const submitBtn = document.getElementById('form-next-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Submitting...';
+
+      try {
+        await db.collection('enterpriseLeads').add({
+          name,
+          email,
+          company,
+          usecase,
+          volume,
+          productInterest: currentType,
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        currentFormStep = 3;
+        showFormStep(3);
+      } catch (err) {
+        console.error('Error submitting enterprise lead:', err);
+        alert('Could not submit details. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Submit';
+      }
+    }
+
+    // Real-Time Firebase User sync
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        db.collection('users').doc(user.uid).onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            activeUserPlan = data.plan || 'free';
+            window.activeUserBuilderPlan = data.builderPlan || data.plan || 'free';
+            
+            // Check if user has active token pack addon
+            const packVal = data.packTokens || 0;
+            hasActivePack = packVal > 0;
+          } else {
+            activeUserPlan = 'free';
+            window.activeUserBuilderPlan = 'free';
+            hasActivePack = false;
+          }
+          updateCardsUI();
+        });
+      } else {
+        activeUserPlan = 'free';
+        window.activeUserBuilderPlan = 'free';
+        hasActivePack = false;
+        updateCardsUI();
+      }
+    });
+  </script>
+
+</body>
+</html>

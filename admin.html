@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ionith — Central Command Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="/creditManager.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'neon-cyan': '#00f0ff',
+            'neon-blue': '#3b82f6',
+            'neon-purple': '#a855f7',
+            'neon-pink': '#ec4899',
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+            sans: ['"Inter"', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'scan-line': 'scanLine 4s linear infinite',
+            'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+            'terminal-blink': 'terminalBlink 1s step-end infinite',
+            'shimmer': 'shimmer 2.5s linear infinite',
+            'float': 'float 6s ease-in-out infinite',
+          },
+          keyframes: {
+            scanLine: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100%)' } },
+            fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            terminalBlink: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0' } },
+            shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+            float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-6px)' } },
+          },
+        },
+      },
+    };
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    body { background: #000000; color: #e2e8f0; min-height: 100vh; overflow-x: hidden; }
+
+    /* Cyberpunk Grid & Orbs */
+    .cyber-grid-bg { position: fixed; inset: 0; z-index: -10; pointer-events: none; background: linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px), linear-gradient(rgba(168, 85, 247, 0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(168, 85, 247, 0.015) 1px, transparent 1px); background-size: 60px 60px, 60px 60px, 20px 20px, 20px 20px; }
+    .ambient-orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: -10; }
+    .ambient-orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(0, 240, 255, 0.08), transparent 70%); top: -100px; left: -100px; animation: float 8s ease-in-out infinite; }
+    .ambient-orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(168, 85, 247, 0.06), transparent 70%); bottom: -50px; right: -50px; animation: float 10s ease-in-out infinite reverse; }
+
+    /* Glass Cards */
+    .glass-card { background: rgba(18, 18, 18, 0.4) !important; backdrop-filter: blur(16px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; position: relative; overflow: hidden; transition: all 0.3s ease; }
+    .glass-card::before { content: ''; position: absolute; inset: 0; background: transparent; pointer-events: none; }
+    .glass-card:hover { border-color: rgba(255, 255, 255, 0.2) !important; background: rgba(255, 255, 255, 0.05) !important; box-shadow: 0 0 25px rgba(0, 240, 255, 0.08), inset 0 0 25px rgba(0, 240, 255, 0.03); }
+
+    /* Token Progress Bar */
+    .token-bar-track { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 3px; height: 10px; position: relative; overflow: hidden; }
+    .token-bar-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+    .token-bar-fill::after { content: ''; position: absolute; top: 0; right: 0; width: 30px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3)); animation: shimmer 2s linear infinite; background-size: 200% 100%; }
+
+    /* Terminal Feed */
+    .terminal-feed { background: rgba(18, 18, 18, 0.4) !important; backdrop-filter: blur(16px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'JetBrains Mono', monospace; }
+    .terminal-header { background: rgba(0, 240, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    .terminal-line { border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.2s ease; }
+    .terminal-line:hover { background: rgba(255, 255, 255, 0.04); }
+
+    .scan-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .scan-overlay::before { content: ''; position: absolute; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.15), transparent); animation: scanLine 4s linear infinite; }
+    
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.4); }
+
+    .text-glow-cyan { text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 30px rgba(0, 240, 255, 0.2); }
+    .hex-badge { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+
+    /* Styled Select */
+    select.plan-picker { appearance: none; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 4px; padding: 2px 20px 2px 8px; font-size: 10px; font-family: 'JetBrains Mono'; font-weight: 600; cursor: pointer; outline: none; transition: 0.2s; }
+    select.plan-picker:hover { background: rgba(0,240,255,0.1); border-color: rgba(0,240,255,0.3); color: #00f0ff; }
+
+    /* Toggle Pill Styles */
+    .toggle-pill {
+      background: rgba(255, 255, 255, 0.02) !important;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      padding: 3px;
+    }
+    .toggle-btn {
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 9999px;
+      transition: all 0.2s;
+    }
+    .toggle-btn.active {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .toggle-btn:not(.active) {
+      color: #71717a;
+    }
+    .toggle-btn:not(.active):hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+
+<div class="fixed top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-neon-cyan/10 rounded-full blur-[120px] pointer-events-none z-[-10]"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-neon-purple/10 rounded-full blur-[120px] pointer-events-none z-[-10]"></div>
+
+  <div id="access-denied" style="display:flex; position:fixed; inset:0; z-index:9999; background:black; align-items:center; justify-content:center; flex-direction:column;">
+    <i data-lucide="shield-alert" class="w-16 h-16 text-red-500 mb-4 animate-pulse"></i>
+    <h1 class="text-3xl font-mono text-red-500 tracking-widest uppercase text-glow-cyan" style="text-shadow: 0 0 20px rgba(239, 68, 68, 0.5)">System Locked</h1>
+    <p class="text-slate-500 mt-2 font-mono">Authenticating commander identity...</p>
+  </div>
+
+  <div class="cyber-grid-bg"></div>
+  <div class="ambient-orb ambient-orb-1"></div>
+  <div class="ambient-orb ambient-orb-2"></div>
+
+  <div class="relative z-10 flex flex-col min-h-screen">
+    
+    <header class="relative glass-card border-b border-cyan-500/10 px-6 py-4">
+      <div class="scan-overlay"></div>
+      <div class="relative z-10 flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-4">
+          <div class="relative cursor-pointer" onclick="window.location.href='/console.html'">
+            <div class="hex-badge w-10 h-11 bg-gradient-to-br from-neon-cyan via-neon-blue to-neon-purple flex items-center justify-center">
+              <div class="hex-badge w-[36px] h-[39px] bg-black flex items-center justify-center">
+                <i data-lucide="shield" class="w-[18px] h-[18px] text-neon-cyan"></i>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-wider text-glow-cyan">
+              <span class="text-neon-cyan">IONITH</span>
+              <span class="text-slate-400 font-light mx-2">/</span>
+              <span class="text-slate-200 font-medium">Central Command</span>
+            </h1>
+            <p class="text-[11px] text-slate-500 font-mono tracking-[0.2em] uppercase mt-0.5">Admin Dashboard v2.0</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-5">
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/30 bg-emerald-500/10">
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+            </span>
+            <span class="text-emerald-400 text-xs font-mono font-semibold tracking-widest uppercase">System Online</span>
+          </span>
+          <div class="text-right hidden sm:block">
+            <p class="text-xs text-slate-500 font-mono tracking-wider">LOCAL TIME</p>
+            <p class="text-sm font-mono text-slate-300 tabular-nums" id="live-clock">00:00:00</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <!-- Admin Mode Switch -->
+      <div class="flex justify-start">
+        <div class="flex toggle-pill h-10 items-center">
+          <button onclick="switchAdminMode('users')" id="admin-type-users" class="toggle-btn active">Ecosystem Users</button>
+          <button onclick="switchAdminMode('controls')" id="admin-type-controls" class="toggle-btn">Ecosystem Controls</button>
+          <button onclick="switchAdminMode('fleet')" id="admin-type-fleet" class="toggle-btn">Fleet Admin</button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD VIEW -->
+      <div id="dashboard-view" class="space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card border-cyan-500/20 rounded-lg p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-10 h-10 rounded-lg bg-neon-cyan/10 flex items-center justify-center text-neon-cyan"><i data-lucide="users"></i></div>
+            <span class="text-[10px] font-mono text-slate-600 tracking-widest uppercase">LIVE</span>
+          </div>
+          <p class="text-3xl font-mono font-bold text-neon-cyan" id="stat-total">0</p>
+          <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Total Users</p>
+        </div>
+
+        <div class="glass-card border-blue-500/20 rounded-lg p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-neon-blue"><i data-lucide="activity"></i></div>
+            <span class="text-[10px] font-mono text-slate-600 tracking-widest uppercase">LIVE</span>
+          </div>
+          <p class="text-3xl font-mono font-bold text-neon-blue" id="stat-active">0</p>
+          <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Active Pro/Max</p>
+        </div>
+
+        <div class="glass-card border-purple-500/20 rounded-lg p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-neon-purple"><i data-lucide="zap"></i></div>
+            <span class="text-[10px] font-mono text-slate-600 tracking-widest uppercase">TODAY</span>
+          </div>
+          <p class="text-3xl font-mono font-bold text-neon-purple" id="stat-tokens">0</p>
+          <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Total Credits Burned</p>
+        </div>
+
+        <div class="glass-card border-pink-500/20 rounded-lg p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center text-neon-pink"><i data-lucide="dollar-sign"></i></div>
+            <span class="text-[10px] font-mono text-slate-600 tracking-widest uppercase">LIVE</span>
+          </div>
+          <p class="text-3xl font-mono font-bold text-neon-pink">₹<span id="stat-mrr">0</span></p>
+          <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Monthly Revenue</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        
+        <div class="lg:col-span-3 glass-card rounded-lg flex flex-col h-[560px]">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-cyan-500/10">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-neon-cyan/10 flex items-center justify-center"><i data-lucide="users" class="w-4 h-4 text-neon-cyan"></i></div>
+              <div>
+                <h2 class="text-sm font-bold text-slate-200 tracking-wide">Active Users & Wallet Balances</h2>
+                <p class="text-[10px] text-slate-600 font-mono tracking-widest uppercase mt-0.5">UNIFIED MONTHLY WALLETS</p>
+              </div>
+            </div>
+            <select id="admin-plan-filter" onchange="loadDashboard()" class="plan-picker ml-auto" style="padding: 6px 12px; font-size: 11px;">
+              <option value="all">All Plans</option>
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
+              <option value="max">Max</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+          
+          <div class="flex items-center gap-4 px-4 py-2 border-b border-white/5 text-[10px] font-mono text-slate-600 tracking-widest uppercase">
+            <span class="w-9 flex-shrink-0"></span><span class="flex-1">User & Plan</span><span class="w-40 flex-shrink-0 text-right">Wallet Used</span>
+          </div>
+
+          <div class="flex-1 overflow-y-auto" id="users-list">
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 terminal-feed rounded-lg flex flex-col h-[560px]">
+          <div class="terminal-header flex items-center justify-between px-4 py-3">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="terminal" class="w-3.5 h-3.5 text-neon-cyan/60"></i>
+                <span class="text-xs font-mono text-slate-400 tracking-wider">ionith:~$ tail -f activity.log</span>
+              </div>
+            </div>
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-60"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-neon-cyan"></span>
+            </span>
+          </div>
+
+          <div class="flex-1 overflow-y-auto" id="activity-list">
+            </div>
+
+          <div class="border-t border-cyan-500/10 px-4 py-2 flex items-center gap-2">
+            <span class="text-neon-cyan/40 font-mono text-xs">❯</span>
+            <span class="text-slate-600 font-mono text-xs">watching for events</span>
+            <span class="animate-terminal-blink text-neon-cyan font-mono text-sm">▋</span>
+          </div>
+        </div>
+      </div>
+      </div> <!-- END DASHBOARD VIEW -->
+
+      <!-- ECOSYSTEM CONTROLS VIEW -->
+      <div id="controls-view" class="hidden space-y-6">
+        <div class="glass-card rounded-lg border-cyan-500/20 p-6 max-w-4xl mx-auto space-y-6">
+          <div class="flex items-center gap-3 border-b border-cyan-500/10 pb-4">
+            <div class="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
+              <i data-lucide="shield-alert" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-slate-200 tracking-wide">Emergency Infrastructure & Capacity Controls</h2>
+              <p class="text-xs text-slate-500 font-mono">GLOBAL SYSTEM CONFIGURATION</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Panel: Toggle Switches -->
+            <div class="space-y-4">
+              <!-- Maintenance Mode Toggle -->
+              <div class="flex items-center justify-between p-4 rounded bg-white/5 border border-white/10 hover:border-red-500/30 transition duration-200">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200">Global Maintenance Mode</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Locks entire platform and halts all user activities.</p>
+                </div>
+                <button id="toggle-maintenance" onclick="toggleSystemFlag('maintenanceMode')" class="px-4 py-1.5 rounded font-mono text-xs font-semibold border transition duration-200 uppercase bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20">Disabled</button>
+              </div>
+
+              <!-- Disable Builder Toggle -->
+              <div class="flex items-center justify-between p-4 rounded bg-white/5 border border-white/10 hover:border-yellow-500/30 transition duration-200">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200">Deactivate Builder Studio</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Blocks code generation requests while leaving Chat active.</p>
+                </div>
+                <button id="toggle-disableBuilder" onclick="toggleSystemFlag('disableBuilder')" class="px-4 py-1.5 rounded font-mono text-xs font-semibold border transition duration-200 uppercase bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20">Disabled</button>
+              </div>
+
+              <!-- Disable Fleet Toggle -->
+              <div class="flex items-center justify-between p-4 rounded bg-white/5 border border-white/10 hover:border-purple-500/30 transition duration-200">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200">Deactivate Agent Fleet</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Halts running multi-agent workflows and execution.</p>
+                </div>
+                <button id="toggle-disableAgentFleet" onclick="toggleSystemFlag('disableAgentFleet')" class="px-4 py-1.5 rounded font-mono text-xs font-semibold border transition duration-200 uppercase bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20">Disabled</button>
+              </div>
+
+              <!-- Disable Free Users Toggle -->
+              <div class="flex items-center justify-between p-4 rounded bg-white/5 border border-white/10 hover:border-pink-500/30 transition duration-200">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200">Suspend Free Tier Access</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Blocks Free users to protect capacity for Pro/Max plans.</p>
+                </div>
+                <button id="toggle-disableFreeUsers" onclick="toggleSystemFlag('disableFreeUsers')" class="px-4 py-1.5 rounded font-mono text-xs font-semibold border transition duration-200 uppercase bg-pink-500/10 text-pink-400 border-pink-500/30 hover:bg-pink-500/20">Disabled</button>
+              </div>
+            </div>
+
+            <!-- Right Panel: Load Scaling -->
+            <div class="space-y-4">
+              <!-- Load Capacity Selector -->
+              <div class="p-4 rounded bg-white/5 border border-white/10 space-y-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200">System Load & Capacity Scaling</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Dynamically scales the 5-hour rolling window limits across all plans.</p>
+                </div>
+                <div class="flex gap-2">
+                  <select id="control-system-load" onchange="updateSystemLoad(this.value)" class="flex-1 bg-black border border-white/10 text-slate-300 rounded font-mono text-xs p-2 outline-none focus:border-cyan-500">
+                    <option value="low">LOW (1.0x compute window)</option>
+                    <option value="medium">MEDIUM (0.8x compute window)</option>
+                    <option value="high">HIGH (0.6x compute window)</option>
+                    <option value="critical">CRITICAL (0.4x compute window)</option>
+                  </select>
+                </div>
+                <div class="text-[10px] font-mono text-slate-500 space-y-1 mt-3">
+                  <p>• Free tier rolling window: <span id="scaling-free-limit">2,500</span> credits</p>
+                  <p>• Pro tier rolling window: <span id="scaling-pro-limit">50,000</span> credits</p>
+                  <p>• Max tier rolling window: <span id="scaling-max-limit">200,000</span> credits</p>
+                </div>
+              </div>
+
+              <!-- Quick Reset Database Stats -->
+              <div class="p-4 rounded bg-white/5 border border-white/10 space-y-3">
+                <div>
+                  <h3 class="text-sm font-bold text-red-400">Hazardous Operations</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Admin-only manual interventions to reset or override database structures.</p>
+                </div>
+                <button onclick="triggerManualResetAll()" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded font-mono text-xs font-semibold uppercase tracking-wider transition duration-200">Force Global Wallet Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLEET ADMIN VIEW -->
+      <div id="fleet-view" class="hidden space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
+          <div class="glass-card border-cyan-500/20 rounded-lg p-5">
+            <p class="text-3xl font-mono font-bold text-neon-cyan" id="stat-fleet-credits">0</p>
+            <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Credits Consumed</p>
+          </div>
+          <div class="glass-card border-blue-500/20 rounded-lg p-5">
+            <p class="text-3xl font-mono font-bold text-neon-blue" id="stat-fleet-users">0</p>
+            <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Users w/ Agents</p>
+          </div>
+          <div class="glass-card border-purple-500/20 rounded-lg p-5">
+            <p class="text-xl font-mono font-bold text-neon-purple line-clamp-1" id="stat-fleet-top-agent">None</p>
+            <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Most Selected Agent</p>
+          </div>
+          <div class="glass-card border-pink-500/20 rounded-lg p-5">
+            <p class="text-xl font-mono font-bold text-neon-pink line-clamp-1">Ruthless Examiner</p>
+            <p class="text-xs text-slate-500 mt-1.5 font-medium tracking-wide">Most Expensive Agent</p>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-mono text-neon-cyan font-bold tracking-widest uppercase">Fleet Management</h2>
+          <span class="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded">Sync via CLI</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="fleet-agents-list">
+          <!-- Agents rendered here -->
+        </div>
+      </div> <!-- END FLEET VIEW -->
+    </main>
+  </div>
+
+
+
+  <script>
+    // LIVE CLOCK
+    setInterval(() => {
+      document.getElementById('live-clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
+    }, 1000);
+
+    // UTILS
+    function formatNumber(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+      if (n >= 1000) return (n / 1000).toFixed(0) + "K";
+      return n.toLocaleString();
+    }
+    function getBarColor(pct) {
+      if (pct < 40) return "bg-gradient-to-r from-emerald-500 to-green-400";
+      if (pct < 65) return "bg-gradient-to-r from-green-400 to-yellow-400";
+      if (pct < 85) return "bg-gradient-to-r from-yellow-400 to-orange-500";
+      return "bg-gradient-to-r from-orange-500 to-red-500";
+    }
+    function getGlowColor(pct) {
+      if (pct < 40) return "rgba(52, 211, 153, 0.4)";
+      if (pct < 65) return "rgba(250, 204, 21, 0.4)";
+      if (pct < 85) return "rgba(249, 115, 22, 0.4)";
+      return "rgba(239, 68, 68, 0.5)";
+    }
+    function timeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return "Just now";
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      return `${Math.floor(hours / 24)}d ago`;
+    }
+    function esc(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // FIREBASE INIT
+    const config = {
+      apiKey: "AIzaSyCghZaZFXQfglTswLP8VP74AvbYLmV2wxw",
+      authDomain: "ionith-omni-agent.web.app",
+      projectId: "ionith-omni-agent",
+      storageBucket: "ionith-omni-agent.firebasestorage.app",
+      messagingSenderId: "174478261991",
+      appId: "1:174478261991:web:73c8957e5f8045dfbcec42"
+    };
+    firebase.initializeApp(config);
+    const db = firebase.firestore();
+
+    // AUTH GUARD
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user || user.email !== "chauhanadityar@gmail.com") {
+        document.getElementById('access-denied').querySelector('p').innerText = "Access Denied. Redirecting...";
+        setTimeout(() => { window.location.href = "/console.html"; }, 2000);
+        return;
+      }
+      
+      // Access Granted
+      document.getElementById('access-denied').style.display = 'none';
+      switchAdminMode('users');
+    });
+
+    // PLAN LIMITS (Must match creditManager.js fallback)
+    const PLAN_LIMITS = window.PLAN_LIMITS || {
+      free: { monthlyWallet: 25000, rollingWindowLimit: 2500 },
+      pro: { monthlyWallet: 500000, rollingWindowLimit: 50000 },
+      max: { monthlyWallet: 3000000, rollingWindowLimit: 200000 },
+      enterprise: { monthlyWallet: Infinity, rollingWindowLimit: Infinity }
+    };
+
+    let currentAdminMode = 'users'; // 'users', 'controls', or 'fleet'
+    let usersUnsub = null;
+    let activityUnsub = null;
+    let fleetUnsub = null;
+    let systemConfigUnsub = null;
+
+    function switchAdminMode(mode) {
+      currentAdminMode = mode;
+      document.getElementById('admin-type-users').className = mode === 'users' ? 'toggle-btn active' : 'toggle-btn';
+      document.getElementById('admin-type-controls').className = mode === 'controls' ? 'toggle-btn active' : 'toggle-btn';
+      document.getElementById('admin-type-fleet').className = mode === 'fleet' ? 'toggle-btn active' : 'toggle-btn';
+      
+      const dashboardView = document.getElementById('dashboard-view');
+      const controlsView = document.getElementById('controls-view');
+      const fleetView = document.getElementById('fleet-view');
+
+      // Hide all views first
+      dashboardView.classList.add('hidden');
+      controlsView.classList.add('hidden');
+      fleetView.classList.add('hidden');
+
+      // Unsubscribe all
+      if (usersUnsub) { usersUnsub(); usersUnsub = null; }
+      if (fleetUnsub) { fleetUnsub(); fleetUnsub = null; }
+      if (systemConfigUnsub) { systemConfigUnsub(); systemConfigUnsub = null; }
+
+      if (mode === 'users') {
+        dashboardView.classList.remove('hidden');
+        loadDashboard();
+      } else if (mode === 'controls') {
+        controlsView.classList.remove('hidden');
+        listenToSystemConfig();
+      } else if (mode === 'fleet') {
+        fleetView.classList.remove('hidden');
+        loadFleetDashboard();
+      }
+    }
+
+    function loadDashboard() {
+      const filter = document.getElementById('admin-plan-filter')?.value || 'all';
+
+      // 1. CLEAR PREVIOUS LISTENER SO THEY DON'T STACK
+      if (usersUnsub) usersUnsub();
+
+      // 2. BUILD QUERY BASED ON FILTER
+      let query = db.collection("users");
+      if (filter !== 'all') {
+        query = query.where("plan", "==", filter);
+      }
+
+      // 3. LISTEN TO USERS
+      usersUnsub = query.limit(100).onSnapshot(snap => {
+        let total = 0, active = 0, totalBurn = 0, mrr = 0;
+        let html = '';
+        let i = 0;
+
+        snap.forEach(doc => {
+          const data = doc.data();
+          const plan = data.plan || 'free';
+          const limit = data.monthlyWallet !== undefined ? data.monthlyWallet : (PLAN_LIMITS[plan]?.monthlyWallet || 25000);
+          const used = data.monthlyUsed || 0;
+          const name = data.displayName || data.email?.split('@')[0] || doc.id.substring(0, 8);
+          const email = data.email || 'No email';
+          const avatar = name.substring(0, 2).toUpperCase();
+
+          total++;
+          
+          let pct = limit === Infinity || limit === 0 ? 0 : Math.round((used / limit) * 100);
+          if (pct > 100) pct = 100;
+          
+          totalBurn += used;
+
+          if (plan === 'pro') {
+            active++;
+            const cycle = data.planCycle || 'monthly';
+            mrr += (cycle === 'monthly') ? 699 : Math.round(9999 / 12);
+          }
+          if (plan === 'max') {
+            active++;
+            const cycle = data.planCycle || 'monthly';
+            mrr += (cycle === 'monthly') ? 1299 : Math.round(18999 / 12);
+          }
+          if (plan === 'enterprise') {
+            active++;
+          }
+
+          const barColor = getBarColor(pct);
+          const glowColor = getGlowColor(pct);
+          
+          const gradients = ["from-neon-cyan to-neon-blue", "from-neon-blue to-neon-purple", "from-neon-purple to-neon-pink", "from-emerald-400 to-neon-cyan"];
+          const grad = gradients[i % gradients.length];
+          i++;
+
+          const selectOptions = `
+            <option value="free" ${plan==='free'?'selected':''}>FREE</option>
+            <option value="pro" ${plan==='pro'?'selected':''}>PRO</option>
+            <option value="max" ${plan==='max'?'selected':''}>MAX</option>
+            <option value="enterprise" ${plan==='enterprise'?'selected':''}>ENTERPRISE</option>
+          `;
+
+          html += `
+            <div class="terminal-line flex items-center gap-4 px-4 py-3.5 flex-wrap md:flex-nowrap">
+              <div class="relative flex-shrink-0">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br ${grad} flex items-center justify-center text-xs font-bold text-black">${avatar}</div>
+                <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-black"></span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-semibold text-slate-200 truncate">${name}</span>
+                  <select onchange="updatePlan('${doc.id}', this.value)" class="plan-picker">
+                    ${selectOptions}
+                  </select>
+                  <button onclick="promptAddCredits('${doc.id}')" title="Add Bonus Credits" class="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-bold uppercase hover:bg-emerald-500/20">+ Credits</button>
+                </div>
+                <p class="text-xs text-slate-500 font-mono truncate mt-0.5">${email}</p>
+                <p class="text-[10px] text-slate-400 font-mono mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span>💬 Chat: <strong class="text-neon-cyan font-bold">${formatNumber(data.chatUsage || 0)}</strong></span>
+                  <span class="text-slate-700">|</span>
+                  <span>🛠️ Builder: <strong class="text-neon-blue font-bold">${formatNumber(data.builderUsage || 0)}</strong></span>
+                  <span class="text-slate-700">|</span>
+                  <span>🤖 Fleet: <strong class="text-neon-purple font-bold">${formatNumber(data.agentUsage || 0)}</strong></span>
+                </p>
+              </div>
+              <div class="w-full md:w-40 flex-shrink-0 mt-2 md:mt-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-mono text-slate-500">${formatNumber(used)} / ${limit === Infinity ? '∞' : formatNumber(limit)}</span>
+                  <span class="text-[10px] font-mono font-bold ${pct >= 85 ? 'text-red-400' : 'text-emerald-400'}">${pct}%</span>
+                </div>
+                <div class="token-bar-track">
+                  <div class="token-bar-fill ${barColor}" style="width: ${pct}%; box-shadow: 0 0 8px ${glowColor}"></div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        document.getElementById('users-list').innerHTML = html;
+        if (filter === 'all') { // Only update global stats if looking at all users
+          document.getElementById('stat-total').innerText = formatNumber(total);
+          document.getElementById('stat-active').innerText = formatNumber(active);
+          document.getElementById('stat-tokens').innerText = formatNumber(totalBurn);
+          document.getElementById('stat-mrr').innerText = mrr.toLocaleString();
+        }
+      });
+
+      // 5. ECOSYSTEM EMERGENCY CONTROLS LISTENERS & TRIGGERS
+      window.listenToSystemConfig = function() {
+        if (systemConfigUnsub) systemConfigUnsub();
+        
+        systemConfigUnsub = db.collection('system').doc('config').onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            
+            // Update Toggles
+            updateToggleButton('maintenanceMode', data.maintenanceMode);
+            updateToggleButton('disableBuilder', data.disableBuilder);
+            updateToggleButton('disableAgentFleet', data.disableAgentFleet);
+            updateToggleButton('disableFreeUsers', data.disableFreeUsers);
+            
+            // Update System Load Selection
+            const loadSelect = document.getElementById('control-system-load');
+            if (loadSelect) {
+              loadSelect.value = data.systemLoad || 'low';
+            }
+            
+            // Update Scale limit previews
+            const scale = { low: 1.0, medium: 0.8, high: 0.6, critical: 0.4 }[data.systemLoad || 'low'] || 1.0;
+            document.getElementById('scaling-free-limit').innerText = formatNumber(Math.round(2500 * scale));
+            document.getElementById('scaling-pro-limit').innerText = formatNumber(Math.round(50000 * scale));
+            document.getElementById('scaling-max-limit').innerText = formatNumber(Math.round(200000 * scale));
+          }
+        });
+      };
+
+      window.updateToggleButton = function(field, isActive) {
+        const btn = document.getElementById(`toggle-${field}`);
+        if (!btn) return;
+        if (isActive) {
+          btn.innerText = "Enabled";
+          btn.className = "px-4 py-1.5 rounded font-mono text-xs font-semibold border transition duration-200 uppercase bg-red-600/20 text-red-500 border-red-500 hover:bg-red-600/30";
+        } else {
+          btn.innerText = "Disabled";
+          btn.className = "px-4 py-1.5 rounded font-mono text-xs font-semibold border transition duration-200 uppercase bg-slate-500/10 text-slate-400 border-slate-500/30 hover:bg-slate-500/20";
+        }
+      };
+
+      window.toggleSystemFlag = function(field) {
+        const configRef = db.collection('system').doc('config');
+        configRef.get().then(doc => {
+          if (doc.exists) {
+            const currentVal = doc.data()[field] || false;
+            configRef.update({
+              [field]: !currentVal
+            }).then(() => {
+              alert(`Emergency flag '${field}' successfully toggled to ${!currentVal}!`);
+            });
+          } else {
+            configRef.set({
+              [field]: true
+            }).then(() => {
+              alert(`Emergency flag '${field}' initialized to true!`);
+            });
+          }
+        });
+      };
+
+      window.updateSystemLoad = function(newLoad) {
+        db.collection('system').doc('config').update({
+          systemLoad: newLoad
+        }).then(() => {
+          alert(`System Load level successfully set to ${newLoad.toUpperCase()}! 5-hour rolling compute window capacities have scaled.`);
+        });
+      };
+
+      window.triggerManualResetAll = function() {
+        if (confirm("WARNING: Are you sure you want to trigger a manual monthly wallet reset for ALL users? This will set all users' monthlyUsed back to 0.")) {
+          const password = prompt("Enter Commander Authentication Code to confirm override:");
+          if (password === "IONITH2026") {
+            db.collection('users').get().then(snap => {
+              const batch = db.batch();
+              snap.forEach(doc => {
+                batch.update(doc.ref, {
+                  monthlyUsed: 0,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+              });
+              batch.commit().then(() => {
+                alert("Global Monthly Wallet reset batch job completed successfully!");
+              });
+            });
+          } else {
+            alert("Authentication Failed. Operation aborted.");
+          }
+        }
+      };
+
+      // 4. LISTEN TO ACTIVITY (Run once)
+      db.collection("activity")
+        .orderBy("timestamp", "desc")
+        .limit(15)
+        .onSnapshot(snap => {
+          let html = '';
+          snap.forEach(doc => {
+            const data = doc.data();
+            const user = data.userName || 'Unknown';
+            const action = data.action || 'Performed an action';
+            const time = data.timestamp ? timeAgo(data.timestamp.toDate()) : 'Just now';
+            
+            let icon = 'message-square', color = 'text-neon-cyan';
+            const a = action.toLowerCase();
+            if (a.includes('🎬') || a.includes('🖼️') || a.includes('📄')) { color = 'text-neon-blue'; }
+            else if (a.includes('upgrade') || a.includes('plan')) { icon = 'dollar-sign'; color = 'text-neon-pink'; }
+
+            html += `
+              <div class="terminal-line flex items-start gap-3 px-4 py-3">
+                <div class="mt-0.5 flex-shrink-0 ${color}">
+                  <i data-lucide="${icon}" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs leading-relaxed">
+                    <span class="text-slate-300 font-semibold">${user}</span>
+                    <span class="text-slate-400 ml-1.5">${esc(action)}</span>
+                  </p>
+                </div>
+                <span class="text-[10px] font-mono text-slate-600 flex-shrink-0 mt-0.5">${time}</span>
+              </div>
+            `;
+          });
+
+          document.getElementById('activity-list').innerHTML = html;
+          lucide.createIcons(); 
+        }, (error) => {
+          console.error("🔥 FIREBASE ERROR:", error);
+        });
+      }
+
+    function updatePlan(uid, newPlan) {
+      if (confirm(`Change plan to ${newPlan.toUpperCase()}?`)) {
+        const planLimits = window.PLAN_LIMITS[newPlan] || window.PLAN_LIMITS.free;
+        db.collection('users').doc(uid).update({
+          plan: newPlan,
+          builderPlan: newPlan, // Backwards compatibility fallback
+          monthlyWallet: planLimits.monthlyWallet
+        }).then(() => {
+          alert(`Successfully updated plan to ${newPlan.toUpperCase()} with ${planLimits.monthlyWallet.toLocaleString()} monthly wallet credits!`);
+        });
+      }
+    }
+
+    function promptAddCredits(uid) {
+      const amt = prompt("How many bonus credits to add to the unified monthly wallet?");
+      if (amt && !isNaN(amt)) {
+        db.collection('users').doc(uid).get().then(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            const plan = data.plan || 'free';
+            const defaultLimit = window.PLAN_LIMITS[plan]?.monthlyWallet || 25000;
+            const currentWallet = data.monthlyWallet !== undefined ? data.monthlyWallet : defaultLimit;
+            const newWallet = currentWallet + parseInt(amt);
+            
+            db.collection('users').doc(uid).update({
+              monthlyWallet: newWallet
+            }).then(() => {
+              alert(`Credits added! New monthly wallet limit: ${newWallet.toLocaleString()} credits.`);
+            });
+          }
+        });
+      }
+    }
+
+    let fleetUsersUnsub = null;
+    function loadFleetDashboard() {
+      if (fleetUnsub) fleetUnsub();
+      if (fleetUsersUnsub) fleetUsersUnsub();
+      
+      fleetUsersUnsub = db.collection("users").onSnapshot(snap => {
+        let totalCredits = 0;
+        let usersWithAgents = 0;
+        let agentCounts = {};
+
+        snap.forEach(doc => {
+          const data = doc.data();
+          if (data.usedCredits) totalCredits += data.usedCredits;
+          if (data.selectedAgents && data.selectedAgents.length > 0) {
+            usersWithAgents++;
+            data.selectedAgents.forEach(ag => {
+              agentCounts[ag] = (agentCounts[ag] || 0) + 1;
+            });
+          }
+        });
+
+        document.getElementById('stat-fleet-credits').innerText = formatNumber(totalCredits);
+        document.getElementById('stat-fleet-users').innerText = formatNumber(usersWithAgents);
+
+        let topAgent = 'None';
+        let topCount = 0;
+        for (const [ag, count] of Object.entries(agentCounts)) {
+          if (count > topCount) { topCount = count; topAgent = ag; }
+        }
+        
+        // Lookup agent name
+        if (topAgent !== 'None') {
+          db.collection('agents').doc(topAgent).get().then(doc => {
+            if (doc.exists) {
+              document.getElementById('stat-fleet-top-agent').innerText = doc.data().name;
+            }
+          });
+        }
+      });
+      
+      fleetUnsub = db.collection("agents").onSnapshot(snap => {
+        let html = '';
+        snap.forEach(doc => {
+          const agent = doc.data();
+          const planBadgeColor = agent.requiredPlan === 'enterprise' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 
+                                 agent.requiredPlan === 'max' ? 'bg-pink-500/20 text-pink-400 border-pink-500/30' :
+                                 agent.requiredPlan === 'pro' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+          
+          html += `
+            <div class="glass-card rounded-lg p-4 border-cyan-500/20 flex flex-col relative">
+              <div class="flex items-start justify-between mb-3">
+                <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-slate-300">
+                  <i data-lucide="${agent.icon || 'bot'}" class="w-5 h-5"></i>
+                </div>
+                <div class="flex flex-col gap-1 items-end">
+                  <span class="px-2 py-0.5 rounded border text-[9px] font-mono font-bold tracking-wider uppercase ${planBadgeColor}">${agent.requiredPlan || 'FREE'}</span>
+                  ${agent.enterpriseOnly ? '<span class="px-2 py-0.5 rounded border border-purple-500/30 bg-purple-500/20 text-purple-400 text-[9px] font-mono font-bold tracking-wider uppercase">Enterprise Only</span>' : ''}
+                </div>
+              </div>
+              <h3 class="text-sm font-bold text-slate-200">${agent.name}</h3>
+              <p class="text-xs text-slate-400 mt-1 line-clamp-2">${agent.description}</p>
+              <div class="mt-auto pt-4 flex items-center justify-between text-xs font-mono border-t border-white/5">
+                <span class="text-slate-500">Status:</span>
+                <span class="${agent.enabled ? 'text-emerald-400' : 'text-red-400'} font-semibold">${agent.enabled ? 'Enabled' : 'Disabled'}</span>
+              </div>
+            </div>
+          `;
+        });
+        document.getElementById('fleet-agents-list').innerHTML = html;
+        lucide.createIcons();
+      });
+    }
+
+
+  </script>
+</body>
+</html>

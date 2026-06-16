@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IONITH — Agent Fleet</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="/creditManager.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'neon-cyan': '#00f0ff',
+            'neon-blue': '#3b82f6',
+            'neon-purple': '#a855f7',
+            'neon-pink': '#ec4899',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    body {
+      background-color: #000000;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .cyber-grid-bg {
+      position: fixed; inset: 0; z-index: -10; pointer-events: none;
+      background: linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                  linear-gradient(rgba(168, 85, 247, 0.015) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(168, 85, 247, 0.015) 1px, transparent 1px);
+      background-size: 60px 60px, 60px 60px, 20px 20px, 20px 20px;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .ambient-orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: -10; }
+    .ambient-orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(0, 240, 255, 0.08), transparent 70%); top: -100px; left: -100px; animation: float 8s ease-in-out infinite; }
+    .ambient-orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(168, 85, 247, 0.06), transparent 70%); bottom: -50px; right: -50px; animation: float 10s ease-in-out infinite reverse; }
+
+    .glass-card {
+      background: rgba(18, 18, 18, 0.6);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .agent-card:hover {
+      border-color: rgba(0, 240, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    .agent-card.selected {
+      border-color: rgba(0, 240, 255, 0.6);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 10px rgba(0, 240, 255, 0.05);
+      background: rgba(0, 240, 255, 0.03);
+    }
+    .agent-card.locked {
+      opacity: 0.7;
+    }
+    
+    .btn-action {
+      transition: all 0.2s;
+    }
+    .btn-action:hover:not(:disabled) {
+      transform: scale(1.02);
+    }
+    .btn-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Custom Scrollbar for Recent Conversations Container */
+    #agent-history-grid::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    #agent-history-grid::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 4px;
+    }
+    #agent-history-grid::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, 0.3);
+      border-radius: 4px;
+    }
+    #agent-history-grid::-webkit-scrollbar-thumb:hover {
+      background: rgba(168, 85, 247, 0.5);
+    }
+  </style>
+</head>
+<body class="flex flex-col">
+
+  <div class="cyber-grid-bg"></div>
+  <div class="ambient-orb ambient-orb-1"></div>
+  <div class="ambient-orb ambient-orb-2"></div>
+
+  <!-- Header -->
+  <header class="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/console.html" class="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 transition">
+          <i data-lucide="arrow-left" class="w-5 h-5 text-slate-300"></i>
+        </a>
+        <div>
+          <h1 class="text-xl font-bold tracking-wider text-neon-cyan drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">AGENT FLEET</h1>
+          <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Configure your AI Workforce</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-6">
+        <!-- Unified Credit Usage Widget -->
+        <div class="flex flex-col min-w-[180px] border border-white/10 rounded-lg p-2 bg-black/40 backdrop-blur-md">
+          <div class="flex justify-between items-baseline mb-1">
+            <span class="text-[8px] font-mono tracking-wider uppercase text-slate-400">Compute Window</span>
+            <div class="flex items-baseline gap-0.5 font-mono text-[10px]">
+              <span id="fleet-credits-used" class="font-bold text-white">0</span>
+              <span class="text-slate-600">/</span>
+              <span id="fleet-credits-total" class="text-slate-400">0</span>
+            </div>
+          </div>
+          <div class="w-full bg-white/5 rounded-full h-1 overflow-hidden mb-1 border border-white/5">
+            <div id="fleet-credits-bar" class="h-full bg-gradient-to-r from-neon-cyan to-neon-purple transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-[7px] font-mono text-slate-500 leading-none">
+            <span id="fleet-credits-percent">0% used</span>
+            <span id="fleet-credits-status">Fluid</span>
+          </div>
+        </div>
+
+        <!-- Slot Counter -->
+        <div class="flex flex-col items-end">
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl font-mono font-bold text-white" id="slots-used">0</span>
+            <span class="text-slate-500 font-mono">/</span>
+            <span class="text-xl font-mono text-slate-400" id="slots-total">0</span>
+          </div>
+          <span class="text-[9px] font-mono tracking-widest uppercase text-emerald-400" id="slots-remaining-text">Slots Available</span>
+        </div>
+        
+        <a href="/pricing.html" class="px-4 py-2 rounded border border-neon-purple/50 bg-neon-purple/10 text-neon-purple text-xs font-bold uppercase tracking-wider hover:bg-neon-purple/20 transition">
+          Upgrade Plan
+        </a>
+        <div class="flex items-center gap-3 pl-6 border-l border-white/10 cursor-pointer hover:opacity-80 transition" title="Return to console">
+          <div class="w-8 h-8 rounded bg-white/10 flex items-center justify-center font-bold text-white text-sm" id="fleet-user-initial">U</div>
+          <div class="flex flex-col">
+            <span class="text-xs text-white" id="fleet-user-email">Loading...</span>
+            <span class="text-[9px] font-mono text-neon-cyan tracking-widest uppercase" id="fleet-user-plan">FREE PLAN</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
+    
+    <!-- Warning Banner for Downgraded Users Over Limit -->
+    <div id="over-limit-banner" class="hidden mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-3">
+      <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5"></i>
+      <div>
+        <h4 class="text-sm font-bold text-red-400">Plan Limit Exceeded</h4>
+        <p class="text-xs text-red-300/80 mt-1">You currently have more agents selected than your plan allows. Your existing agents remain active, but you cannot select new ones until you upgrade or remove agents.</p>
+      </div>
+    </div>
+
+    <!-- Recent Agent Conversations -->
+    <div id="agent-history-section" class="hidden mb-8">
+      <h2 class="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <i data-lucide="history" class="w-4 h-4 text-neon-cyan"></i> Recent Agent Conversations
+      </h2>
+      <div id="agent-history-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="flex flex-col sm:flex-row gap-4 mb-8">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+        <input type="text" id="search-input" placeholder="Search agents by name or capability..." 
+               class="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-neon-cyan/50 transition">
+      </div>
+      <select id="category-filter" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-neon-cyan/50 transition min-w-[150px]">
+        <option value="all">All Categories</option>
+        <option value="General">General</option>
+        <option value="Business">Business & Sales</option>
+        <option value="Development">Development</option>
+        <option value="Design">Design</option>
+        <option value="Marketing">Marketing</option>
+        <option value="Research">Research & Data</option>
+        <option value="Education">Education</option>
+      </select>
+    </div>
+
+    <!-- Agent Grid -->
+    <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <!-- Loading skeleton -->
+      <div class="glass-card p-5 h-64 animate-pulse flex flex-col justify-between">
+        <div class="w-12 h-12 bg-white/10 rounded-lg mb-4"></div>
+        <div class="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
+        <div class="h-3 bg-white/5 rounded w-1/2 mb-4"></div>
+        <div class="h-10 bg-white/5 rounded w-full mt-auto"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCghZaZFXQfglTswLP8VP74AvbYLmV2wxw",
+      authDomain: "ionith-omni-agent.web.app",
+      projectId: "ionith-omni-agent",
+      storageBucket: "ionith-omni-agent.firebasestorage.app",
+      messagingSenderId: "174478261991",
+      appId: "1:174478261991:web:73c8957e5f8045dfbcec42"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let allAgents = [];
+    let userData = null;
+    let userDocRef = null;
+
+    let allAgentChats = [];
+    let activeChatToDelete = null;
+    let activeAgentForDelete = null;
+    let activeIsLegacyToDelete = false;
+
+    // Show custom context menu
+    function showContextMenu(x, y, chatId, agentId, isLegacy) {
+      activeChatToDelete = chatId;
+      activeAgentForDelete = agentId;
+      activeIsLegacyToDelete = isLegacy;
+      
+      const contextMenu = document.getElementById('custom-context-menu');
+      if (!contextMenu) return;
+      contextMenu.classList.remove('hidden');
+      
+      const menuWidth = contextMenu.offsetWidth || 160;
+      const menuHeight = contextMenu.offsetHeight || 40;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      let left = x;
+      let top = y;
+      
+      if (x + menuWidth > windowWidth) {
+        left = windowWidth - menuWidth - 8;
+      }
+      if (y + menuHeight > windowHeight) {
+        top = windowHeight - menuHeight - 8;
+      }
+      
+      contextMenu.style.left = `${left}px`;
+      contextMenu.style.top = `${top}px`;
+    }
+
+    // Hide context menu on click outside
+    document.addEventListener('click', (e) => {
+      const contextMenu = document.getElementById('custom-context-menu');
+      if (contextMenu && !contextMenu.contains(e.target) && !e.target.closest('.three-dots-btn')) {
+        contextMenu.classList.add('hidden');
+      }
+    });
+
+    // Hide context menu on scroll
+    window.addEventListener('scroll', () => {
+      const contextMenu = document.getElementById('custom-context-menu');
+      if (contextMenu) contextMenu.classList.add('hidden');
+    }, { passive: true });
+
+    // Touch support for long press
+    let touchTimeout;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+
+    function setupTouchListeners(card) {
+      card.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+        
+        clearTimeout(touchTimeout);
+        touchTimeout = setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate(30);
+          showContextMenu(touch.clientX, touch.clientY, card.dataset.chatId, card.dataset.agentId, card.dataset.legacy === 'true');
+        }, 600);
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientX - lastTouchX) > 10 || Math.abs(touch.clientY - lastTouchY) > 10) {
+          clearTimeout(touchTimeout);
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', () => {
+        clearTimeout(touchTimeout);
+      });
+      card.addEventListener('touchcancel', () => {
+        clearTimeout(touchTimeout);
+      });
+    }
+
+    // Render Recent Conversations UI
+    function renderHistoryUI() {
+      const histSection = document.getElementById('agent-history-section');
+      const histGrid = document.getElementById('agent-history-grid');
+      if (!histSection || !histGrid) return;
+      
+      const displayChats = allAgentChats.slice(0, 40);
+      
+      if (displayChats.length > 0) {
+        histSection.classList.remove('hidden');
+        histGrid.innerHTML = displayChats.map(chat => {
+          let dateStr = 'Just now';
+          if (chat.updatedAt) {
+            const date = chat.updatedAt.toDate ? chat.updatedAt.toDate() : new Date(chat.updatedAt);
+            dateStr = date.toLocaleDateString();
+          }
+          return `
+            <div class="relative glass-card p-4 hover:border-neon-cyan/50 transition cursor-pointer flex flex-col gap-2 group snap-start" data-chat-id="${chat.id}" data-agent-id="${chat.agentId || ''}" data-legacy="${chat.isLegacy || ''}">
+              <!-- Three-dots trigger helper -->
+              <button class="absolute top-3 right-3 text-slate-500 hover:text-white p-1 rounded hover:bg-white/5 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition three-dots-btn" data-chat-id="${chat.id}">
+                <i data-lucide="more-vertical" class="w-4 h-4"></i>
+              </button>
+              
+              <a href="/console.html?chatId=${chat.id}" class="flex flex-col gap-2 w-full h-full pr-6">
+                <div class="flex items-center gap-2 mb-1">
+                  <i data-lucide="bot" class="w-4 h-4 text-neon-purple"></i>
+                  <span class="text-xs font-bold text-neon-purple uppercase tracking-wider">${chat.agentName || 'Agent'}</span>
+                </div>
+                <h3 class="text-sm font-semibold text-white truncate">${chat.title || 'Conversation'}</h3>
+                <span class="text-[10px] text-slate-500 font-mono mt-auto">${dateStr}</span>
+              </a>
+            </div>
+          `;
+        }).join('');
+        lucide.createIcons();
+        
+        // Attach handlers to the newly rendered cards
+        const cards = histGrid.querySelectorAll('[data-chat-id]');
+        cards.forEach(card => {
+          // Desktop Right Click
+          card.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showContextMenu(e.clientX, e.clientY, card.dataset.chatId, card.dataset.agentId, card.dataset.legacy === 'true');
+          });
+          // Touch / Mobile Long Press
+          setupTouchListeners(card);
+        });
+      } else {
+        histSection.classList.add('hidden');
+      }
+    }
+
+    // Handle Three-Dots helper menu click
+    document.addEventListener('click', (e) => {
+      const threeDots = e.target.closest('.three-dots-btn');
+      if (threeDots) {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = threeDots.getBoundingClientRect();
+        const card = threeDots.closest('[data-chat-id]');
+        showContextMenu(rect.left - 100, rect.bottom + 8, card.dataset.chatId, card.dataset.agentId, card.dataset.legacy === 'true');
+      }
+    });
+
+    // Optimistic Deletion
+    async function deleteChat(chatId, agentId, isLegacy) {
+      const contextMenu = document.getElementById('custom-context-menu');
+      if (contextMenu) contextMenu.classList.add('hidden');
+      
+      const originalChatsBackup = [...allAgentChats];
+      
+      // Optimistically remove on front-end
+      allAgentChats = allAgentChats.filter(c => c.id !== chatId);
+      renderHistoryUI();
+      
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error("No user signed in.");
+        
+        if (isLegacy) {
+          await db.collection('users').doc(user.uid)
+            .collection('agentChats').doc(chatId).delete();
+        } else {
+          await db.collection('users').doc(user.uid)
+            .collection('agents').doc(agentId)
+            .collection('chats').doc(chatId).delete();
+        }
+        console.log("Deleted chat:", chatId);
+      } catch (err) {
+        console.error("Firebase delete failed, rolling back:", err);
+        alert("Unable to delete chat on server. Restoring conversation...");
+        allAgentChats = originalChatsBackup;
+        renderHistoryUI();
+      }
+    }
+
+    const PLAN_LIMITS = { free: 0, pro: 3, max: 6, enterprise: 999 };
+    const PLAN_LEVELS = { free: 0, pro: 1, max: 2, enterprise: 3 };
+
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = '/console.html';
+        return;
+      }
+      userDocRef = db.collection('users').doc(user.uid);
+      
+      document.getElementById('fleet-user-email').innerText = user.email;
+      if (user.email) document.getElementById('fleet-user-initial').innerText = user.email.charAt(0).toUpperCase();
+      
+      // Listen to user data
+      userDocRef.onSnapshot(async doc => {
+        if (!doc.exists) return;
+        userData = doc.data();
+        userData.plan = userData.plan || 'free';
+        userData.selectedAgents = userData.selectedAgents || [];
+        userData.enterpriseOverrides = userData.enterpriseOverrides || [];
+        
+        // Unified Limits from creditManager.js
+        const limits = window.PLAN_LIMITS[userData.plan] || window.PLAN_LIMITS.free;
+        userData.agentLimit = limits.concurrentAgents;
+        
+        document.getElementById('fleet-user-plan').innerText = userData.plan.toUpperCase() + ' PLAN';
+        if (userData.plan === 'enterprise') {
+          document.getElementById('fleet-user-plan').className = "text-[9px] font-mono text-purple-400 tracking-widest uppercase";
+        } else if (userData.plan === 'max') {
+          document.getElementById('fleet-user-plan').className = "text-[9px] font-mono text-pink-400 tracking-widest uppercase";
+        } else if (userData.plan === 'pro') {
+          document.getElementById('fleet-user-plan').className = "text-[9px] font-mono text-blue-400 tracking-widest uppercase";
+        }
+        
+        if (userData.plan === 'enterprise') userData.agentLimit = 999;
+        
+        updateSlotUI();
+        if (allAgents.length > 0) renderAgents();
+
+        // Sync Unified Compute usage progress bar
+        const rollingUsed = await window.calculateRollingUsage(db, user.uid);
+        const loadScaling = await window.getSystemLoadScaling(db);
+        const rollingLimit = limits.rollingWindowLimit * loadScaling;
+
+        const creditsUsedEl = document.getElementById('fleet-credits-used');
+        const creditsTotalEl = document.getElementById('fleet-credits-total');
+        const creditsBarEl = document.getElementById('fleet-credits-bar');
+        const creditsPercentEl = document.getElementById('fleet-credits-percent');
+        const creditsStatusEl = document.getElementById('fleet-credits-status');
+
+        if (creditsUsedEl) creditsUsedEl.innerText = Math.floor(rollingUsed).toLocaleString();
+        if (creditsTotalEl) creditsTotalEl.innerText = rollingLimit === Infinity ? "∞" : Math.floor(rollingLimit).toLocaleString();
+        
+        const pct = rollingLimit === Infinity ? 0 : Math.min(100, Math.floor((rollingUsed / rollingLimit) * 100));
+        if (creditsBarEl) {
+          creditsBarEl.style.width = `${pct}%`;
+          if (pct >= 100) {
+            creditsBarEl.style.background = '#ef4444'; // Red
+          } else if (pct >= 80) {
+            creditsBarEl.style.background = '#fbbf24'; // Amber
+          } else {
+            creditsBarEl.style.background = ''; // Gradient
+          }
+        }
+        if (creditsPercentEl) creditsPercentEl.innerText = `${pct}% used`;
+        if (creditsStatusEl) {
+          if (pct >= 100) {
+            creditsStatusEl.innerText = 'Exhausted';
+            creditsStatusEl.className = 'text-red-400 animate-pulse';
+          } else if (pct >= 80) {
+            creditsStatusEl.innerText = 'Near limit';
+            creditsStatusEl.className = 'text-amber-400';
+          } else {
+            creditsStatusEl.innerText = 'Fluid';
+            creditsStatusEl.className = 'text-slate-500';
+          }
+        }
+      });
+
+      // Fetch all agents
+      db.collection('agents').where('enabled', '==', true).get().then(snap => {
+        allAgents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderAgents();
+      });
+
+      // Fetch Recent Agent Chats
+      (async () => {
+        try {
+          const agentsSnap = await db.collection('users').doc(user.uid).collection('agents').get();
+          const chatPromises = agentsSnap.docs.map(async (agentDoc) => {
+            const agentData = agentDoc.data();
+            const chatsSnap = await db.collection('users').doc(user.uid)
+              .collection('agents').doc(agentDoc.id)
+              .collection('chats').orderBy('updatedAt', 'desc').limit(50).get();
+            return chatsSnap.docs.map(chatDoc => ({
+              ...chatDoc.data(),
+              agentId: agentDoc.id,
+              agentName: agentData.agentName || 'Agent'
+            }));
+          });
+          const chatsResults = await Promise.all(chatPromises);
+          allAgentChats = chatsResults.flat();
+
+          // Fallback to old agentChats collection
+          const oldSnap = await db.collection('users').doc(user.uid).collection('agentChats').orderBy('updatedAt', 'desc').limit(50).get();
+          const oldChats = oldSnap.docs.map(d => ({ ...d.data(), isLegacy: true }));
+
+          const seenIds = new Set(allAgentChats.map(c => c.id));
+          oldChats.forEach(c => {
+            if (c.id && !seenIds.has(c.id)) {
+              allAgentChats.push(c);
+              seenIds.add(c.id);
+            }
+          });
+
+          // Sort by updatedAt desc
+          allAgentChats.sort((a, b) => {
+            const aTime = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : (a.updatedAt || 0);
+            const bTime = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : (b.updatedAt || 0);
+            return bTime - aTime;
+          });
+
+          // Render UI
+          renderHistoryUI();
+        } catch (e) {
+          console.error("Failed to load agent chat history:", e);
+        }
+      })();
+    });
+
+    document.getElementById('search-input').addEventListener('input', renderAgents);
+    document.getElementById('category-filter').addEventListener('change', renderAgents);
+
+    function updateSlotUI() {
+      if (!userData) return;
+      const used = userData.selectedAgents.length;
+      const total = userData.agentLimit;
+      const remaining = total === 999 ? '∞' : Math.max(0, total - used);
+      
+      document.getElementById('slots-used').innerText = used;
+      document.getElementById('slots-total').innerText = total === 999 ? '∞' : total;
+      
+      if (used > total && total !== 999) {
+        document.getElementById('slots-remaining-text').innerText = "LIMIT EXCEEDED";
+        document.getElementById('slots-remaining-text').className = "text-[9px] font-mono tracking-widest uppercase text-red-500";
+        document.getElementById('over-limit-banner').classList.remove('hidden');
+      } else {
+        document.getElementById('slots-remaining-text').innerText = `${remaining} Slots Available`;
+        document.getElementById('slots-remaining-text').className = "text-[9px] font-mono tracking-widest uppercase text-emerald-400";
+        document.getElementById('over-limit-banner').classList.add('hidden');
+      }
+    }
+
+    function renderAgents() {
+      if (!userData || !allAgents) return;
+
+      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+      const categoryFilter = document.getElementById('category-filter').value;
+      const grid = document.getElementById('agents-grid');
+      let html = '';
+
+      const userPlanLevel = PLAN_LEVELS[userData.plan] || 0;
+      const usedSlots = userData.selectedAgents.length;
+      const totalSlots = userData.agentLimit;
+      const isOverLimit = totalSlots !== 999 && usedSlots >= totalSlots;
+
+      allAgents.forEach(agent => {
+        // Filtering
+        if (searchTerm && !agent.name.toLowerCase().includes(searchTerm) && !agent.description.toLowerCase().includes(searchTerm)) return;
+        if (categoryFilter !== 'all' && agent.category !== categoryFilter) return;
+
+        const isSelected = userData.selectedAgents.some(a => 
+          (typeof a === 'object' ? a.agentId : a) === agent.id
+        );
+        const agentPlanLevel = PLAN_LEVELS[agent.requiredPlan] || 0;
+        
+        let hasAccess = userPlanLevel >= agentPlanLevel;
+        if (agent.enterpriseOnly && userData.plan !== 'enterprise') {
+           hasAccess = userData.enterpriseOverrides.includes(agent.id);
+        }
+
+        let cardClasses = 'glass-card agent-card p-5 flex flex-col relative h-full';
+        let actionBtnHTML = '';
+        
+        const planBadgeColor = agent.requiredPlan === 'enterprise' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 
+                               agent.requiredPlan === 'max' ? 'bg-pink-500/20 text-pink-400 border-pink-500/30' :
+                               agent.requiredPlan === 'pro' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                               'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+
+        let executionBadgeHTML = '';
+        if (agent.executionMode === "background_worker") {
+          executionBadgeHTML = `<span class="execution-badge bg-worker" style="border: 1px solid #a855f7; color: #a855f7; background: rgba(168,85,247,0.08); font-size: 10px; padding: 2px 8px; border-radius: 9999px;">⚙ Worker</span>`;
+        } else {
+          executionBadgeHTML = `<span class="execution-badge in-chat" style="border: 1px solid #00f0ff; color: #00f0ff; background: rgba(0,240,255,0.08); font-size: 10px; padding: 2px 8px; border-radius: 9999px;">⚡ In-Chat</span>`;
+        }
+
+        if (isSelected) {
+          cardClasses += ' selected';
+          const removeText = agent.executionMode === "background_worker" ? "Remove from Workers" : "Remove from Station";
+          const openBtnHTML = agent.executionMode !== "background_worker"
+            ? `<a href="/agent.html?id=${agent.id}" class="btn-action w-full py-2.5 rounded-lg border border-neon-cyan/50 bg-neon-cyan/10 text-neon-cyan font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-neon-cyan/20 transition text-center no-underline" style="text-decoration:none;"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open Workspace</a>`
+            : '';
+          actionBtnHTML = `${openBtnHTML}<button onclick="toggleAgent('${agent.id}')" class="btn-action w-full py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 font-semibold text-xs uppercase tracking-wider">${removeText}</button>`;
+        } else if (!hasAccess) {
+          cardClasses += ' locked';
+          actionBtnHTML = `<button onclick="window.location.href='/pricing.html'" class="btn-action w-full py-2.5 rounded-lg border border-neon-purple/50 bg-neon-purple/10 text-neon-purple font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-2"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Unlock with ${agent.requiredPlan.toUpperCase()}</button>`;
+        } else if (isOverLimit) {
+          actionBtnHTML = `<button disabled class="btn-action w-full py-2.5 rounded-lg border border-white/10 bg-white/5 text-slate-500 font-semibold text-xs uppercase tracking-wider">No Slots Left</button>`;
+        } else {
+          const addText = agent.executionMode === "background_worker" ? "Add to Workers" : "Add to Station";
+          actionBtnHTML = `<button onclick="toggleAgent('${agent.id}')" class="btn-action w-full py-2.5 rounded-lg border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 font-semibold text-xs uppercase tracking-wider">${addText}</button>`;
+        }
+
+        html += `
+          <div class="${cardClasses}">
+            ${isSelected ? '<div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-neon-cyan flex items-center justify-center text-black border-2 border-black z-10 shadow-[0_0_10px_#00f0ff]"><i data-lucide="check" class="w-3.5 h-3.5 font-bold"></i></div>' : ''}
+            
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300">
+                <i data-lucide="${agent.icon || 'bot'}" class="w-6 h-6"></i>
+              </div>
+              <div class="flex flex-col gap-1.5 items-end">
+                <span class="px-2 py-0.5 rounded border text-[9px] font-mono font-bold tracking-wider uppercase ${planBadgeColor}">${agent.requiredPlan || 'FREE'}</span>
+                ${executionBadgeHTML}
+                ${agent.enterpriseOnly ? '<span class="px-2 py-0.5 rounded border border-purple-500/30 bg-purple-500/20 text-purple-400 text-[9px] font-mono font-bold tracking-wider uppercase">Enterprise</span>' : ''}
+                <span class="px-2 py-0.5 rounded border border-slate-500/30 bg-slate-500/10 text-slate-300 text-[9px] font-mono tracking-wider uppercase">Usage: ${agent.costMultiplier || 1.0}x Credits</span>
+              </div>
+            </div>
+            
+            <h3 class="text-base font-bold text-white mb-1.5">${agent.name}</h3>
+            <p class="text-xs text-slate-400 leading-relaxed mb-6 line-clamp-3">${agent.description}</p>
+            
+            <div class="mt-auto flex flex-col gap-2">
+              ${actionBtnHTML}
+            </div>
+          </div>
+        `;
+      });
+      
+      if (allAgents.length > 0 && html === '') {
+        html = `<div class="col-span-full py-12 text-center text-slate-500 font-mono text-sm">No agents match your criteria.</div>`;
+      }
+      
+      grid.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    async function toggleAgent(agentId) {
+      if (!userData) return;
+
+      let selected = [...userData.selectedAgents];
+      const index = selected.findIndex(a => (typeof a === 'object' ? a.agentId : a) === agentId);
+      
+      // If adding a new agent, perform credit validation first
+      if (index === -1) {
+        const limits = window.PLAN_LIMITS[userData.plan || 'free'] || window.PLAN_LIMITS.free;
+        const loadScaling = await window.getSystemLoadScaling(db);
+        const rollingLimit = limits.rollingWindowLimit * loadScaling;
+        const rollingUsed = await window.calculateRollingUsage(db, auth.currentUser.uid);
+
+        if (userData.plan !== 'enterprise' && rollingUsed >= rollingLimit) {
+          const recoveryTime = new Date(Date.now() + 5 * 60 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          
+          const popup = document.createElement('div');
+          popup.className = 'fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in';
+          popup.innerHTML = `
+            <div class="bg-[#0b0b0f] border border-white/10 p-6 rounded-2xl w-full max-w-sm text-center space-y-4 shadow-2xl">
+              <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 text-red-400 mb-2">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <h3 class="text-base font-bold text-white uppercase tracking-wider">Ecosystem Compute Exhausted</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Your daily agent fleet quota has been exhausted. Your compute window will recover gradually. The next renewal will occur by <strong class="text-white font-mono">${recoveryTime}</strong>.
+              </p>
+              <div class="flex flex-col gap-2 pt-2">
+                <a href="/pricing.html" class="w-full py-2.5 rounded bg-gradient-to-r from-neon-purple to-neon-pink text-white text-xs font-bold uppercase tracking-wider hover:opacity-90 transition text-center block">
+                  Upgrade Plan
+                </a>
+                <button onclick="this.closest('.fixed').remove()" class="w-full py-2.5 rounded border border-white/10 text-slate-400 hover:text-white text-xs font-semibold uppercase transition">
+                  Close
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(popup);
+          return;
+        }
+
+        const totalSlots = userData.agentLimit;
+        if (totalSlots !== 999 && selected.length >= totalSlots) {
+          alert("You have reached your maximum agent slot limit. Upgrade your plan or remove an agent first.");
+          return;
+        }
+        const agent = allAgents.find(a => a.id === agentId);
+        selected.push({
+          agentId: agentId,
+          executionMode: agent ? (agent.executionMode || "in_chat") : "in_chat"
+        });
+      } else {
+        selected.splice(index, 1);
+      }
+      
+      try {
+        const usedSlots = selected.length;
+        const totalSlots = userData.agentLimit;
+        const remainingSlots = totalSlots === 999 ? 999 : Math.max(0, totalSlots - usedSlots);
+        await userDocRef.update({ 
+          selectedAgents: selected,
+          usedSlots: usedSlots,
+          remainingSlots: remainingSlots
+        });
+      } catch(e) {
+        console.error("Error updating agents:", e);
+        alert("Failed to update agent selection.");
+      }
+    }
+
+    // Handle context menu delete click
+    document.getElementById('context-delete-btn').addEventListener('click', async () => {
+      if (activeChatToDelete) {
+        await deleteChat(activeChatToDelete, activeAgentForDelete, activeIsLegacyToDelete);
+        activeChatToDelete = null;
+        activeAgentForDelete = null;
+        activeIsLegacyToDelete = false;
+      }
+    });
+  </script>
+
+  <div id="custom-context-menu" class="fixed hidden z-[9999] bg-[#0d0d0e]/95 border border-purple-500/30 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.15)] backdrop-blur-md p-1 min-w-[160px] select-none pointer-events-auto">
+    <button id="context-delete-btn" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg flex items-center gap-2 transition duration-150">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      Delete Chat
+    </button>
+  </div>
+</body>
+</html>
